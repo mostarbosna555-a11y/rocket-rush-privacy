@@ -72,6 +72,25 @@
     background: #fff; color: #1a1033; padding: 12px 18px; border-radius: 14px; font-size: 14px;
     font-weight: 600; transition: transform .3s; z-index: 20; max-width: calc(100% - 32px); text-align: center; }
   .toast.show { transform: translateX(-50%) translateY(0); }
+  .salary-btn { display: flex; align-items: center; gap: 12px; width: 100%; margin: 0 0 20px; padding: 14px;
+    border-radius: 16px; border: 1px dashed var(--card2); background: rgba(241, 7, 163, .08);
+    color: var(--text); font-size: 14px; text-align: left; cursor: pointer; }
+  .salary-btn .big { font-size: 26px; }
+  .salary-btn b { display: block; font-size: 15px; }
+  .salary-btn span { color: var(--muted); font-size: 12px; }
+  .salary-btn:active { transform: scale(.98); }
+
+  .push { position: fixed; top: 10px; left: 50%; width: calc(100% - 20px); max-width: 460px; z-index: 40;
+    transform: translate(-50%, -150%); transition: transform .45s cubic-bezier(.2, .9, .3, 1.2);
+    background: rgba(245, 243, 250, .97); color: #111; border-radius: 20px; padding: 12px 14px;
+    display: flex; gap: 12px; align-items: flex-start; box-shadow: 0 12px 30px rgba(0,0,0,.35); cursor: pointer; }
+  .push.show { transform: translate(-50%, 0); }
+  .push .app-ic { width: 38px; height: 38px; border-radius: 10px; flex: none; display: grid; place-items: center;
+    font-size: 20px; background: linear-gradient(135deg, var(--card1), var(--card2)); }
+  .push .p-body { flex: 1; min-width: 0; }
+  .push .p-top { display: flex; justify-content: space-between; font-size: 12px; color: #666; }
+  .push .p-title { font-weight: 700; font-size: 14px; margin: 2px 0; }
+  .push .p-text { font-size: 13px; color: #333; }
   footer { text-align: center; color: var(--muted); font-size: 11px; margin-top: 28px; }
   .confetti { position: fixed; top: -20px; font-size: 22px; pointer-events: none; z-index: 30;
     animation: fall linear forwards; }
@@ -104,6 +123,11 @@
     <div class="act" data-act="rich"><div>👑</div>Zengin Ol</div>
   </div>
 
+  <button class="salary-btn" id="salaryBtn">
+    <div class="big">💰</div>
+    <div><b>Maaş Yattı Bildirimi</b><span>Ayarla, bekle, arkadaşlarına hava at 😎</span></div>
+  </button>
+
   <h3>Son İşlemler <a id="clearTx">Temizle</a></h3>
   <div id="txList"></div>
 
@@ -114,6 +138,14 @@
   <div class="modal" id="modal"></div>
 </div>
 <div class="toast" id="toast"></div>
+<div class="push" id="push">
+  <div class="app-ic">🏦</div>
+  <div class="p-body">
+    <div class="p-top"><span>KnkBank</span><span>şimdi</span></div>
+    <div class="p-title" id="pushTitle"></div>
+    <div class="p-text" id="pushText"></div>
+  </div>
+</div>
 
 <script>
   const $ = id => document.getElementById(id);
@@ -257,6 +289,56 @@
     confetti(); toast(`${src}: +${fmt(a)} 🤑`);
   }
 
+  function ding() {
+    try {
+      const ac = new (window.AudioContext || window.webkitAudioContext)();
+      [[880, 0], [1320, .15]].forEach(([f, t]) => {
+        const o = ac.createOscillator(), g = ac.createGain();
+        o.frequency.value = f; o.connect(g); g.connect(ac.destination);
+        g.gain.setValueAtTime(.25, ac.currentTime + t);
+        g.gain.exponentialRampToValueAtTime(.001, ac.currentTime + t + .35);
+        o.start(ac.currentTime + t); o.stop(ac.currentTime + t + .4);
+      });
+    } catch {}
+  }
+
+  function showPush(title, text) {
+    $('pushTitle').textContent = title; $('pushText').textContent = text;
+    $('push').classList.add('show'); ding();
+    try { navigator.vibrate && navigator.vibrate([200, 100, 200]); } catch {}
+    clearTimeout(showPush._t); showPush._t = setTimeout(() => $('push').classList.remove('show'), 6000);
+  }
+  $('push').onclick = () => $('push').classList.remove('show');
+
+  function salaryModal() {
+    openModal(`<h4>Maaş yattı bildirimi 💰</h4>
+      <label>Maaş tutarı (₺)</label><input id="inSal" inputmode="decimal" placeholder="45.000">
+      <div class="quick"><button data-q="17.002">Asgari 🥲</button><button data-q="45.000">Orta halli</button><button data-q="250.000">CEO</button><button data-q="1.000.000">Futbolcu</button></div>
+      <label>Gönderen şirket</label><input id="inCo" maxlength="40">
+      <label>Ne zaman gelsin?</label>
+      <div class="quick" id="delayQ"><button data-d="0">Hemen</button><button data-d="5">5 sn</button><button data-d="15">15 sn</button><button data-d="60">1 dk</button></div>
+      <button class="btn ok">Bildirimi Kur</button><button class="btn ghost">Vazgeç</button>`, () => {
+      const a = parseAmt($('inSal').value);
+      if (isNaN(a) || a <= 0) { toast('Maaşı yaz kanka, gönüllü mü çalışıyorsun? 😅'); return false; }
+      const co = $('inCo').value.trim() || 'Kanka Holding A.Ş.';
+      const title = '💰 Maaşınız yattı!';
+      const text = `${fmt(a)} hesabınıza yatırıldı. Gönderen: ${co}`;
+      if (window.KnkNative) { try { KnkNative.notify(title, text, delay * 1000); } catch {} }
+      if (delay) toast(delay >= 60 ? '1 dk sonra maaş geliyor, telefonu kilitle bekle 😏' : `${delay} sn sonra maaş geliyor ⏳`);
+      setTimeout(() => {
+        state.balance += a; addTx('💼', 'Maaş · ' + co, a); render();
+        showPush(title, text); confetti();
+      }, delay * 1000);
+    });
+    let delay = 5;
+    const btns = $('delayQ').querySelectorAll('button');
+    const mark = () => btns.forEach(b => b.style.borderColor = +b.dataset.d === delay ? 'var(--card2)' : '');
+    btns.forEach(b => b.onclick = () => { delay = +b.dataset.d; mark(); });
+    mark();
+    $('inCo').value = 'Kanka Holding A.Ş.';
+  }
+
+  $('salaryBtn').onclick = salaryModal;
   $('nameEl').onclick = editName;
   $('balanceEl').onclick = editBalance;
   $('eyeBtn').onclick = () => { state.hidden = !state.hidden; render(); };
