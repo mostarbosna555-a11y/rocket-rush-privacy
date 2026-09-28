@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#12002b">
+<title>KnkBank</title>
+<style>
+  :root {
+    --bg: #0d0620; --card1: #7b2ff7; --card2: #f107a3; --panel: #1a1033;
+    --text: #f4f0ff; --muted: #a79bc9; --green: #2ee59d; --red: #ff5c7a; --line: #2c1f4d;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, 'Segoe UI', Roboto, Arial, sans-serif; }
+  .app { max-width: 480px; margin: 0 auto; padding: 20px 16px 90px; }
+  header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+  .logo { font-weight: 800; font-size: 22px; letter-spacing: -.5px; }
+  .logo span { background: linear-gradient(90deg, var(--card1), var(--card2));
+    -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .icon-btn { background: var(--panel); border: 1px solid var(--line); color: var(--text);
+    width: 40px; height: 40px; border-radius: 12px; font-size: 18px; cursor: pointer; }
+  .hello { color: var(--muted); font-size: 14px; }
+  .name { font-size: 24px; font-weight: 700; margin: 2px 0 16px; cursor: pointer; }
+  .name small { font-size: 13px; color: var(--muted); font-weight: 400; margin-left: 6px; }
+
+  .card { position: relative; border-radius: 22px; padding: 22px; overflow: hidden;
+    background: linear-gradient(135deg, var(--card1), var(--card2));
+    box-shadow: 0 18px 40px -12px rgba(241, 7, 163, .5); }
+  .card::after { content: ""; position: absolute; width: 220px; height: 220px; border-radius: 50%;
+    background: rgba(255,255,255,.12); right: -60px; top: -80px; }
+  .card .label { font-size: 13px; opacity: .85; }
+  .balance { font-size: 36px; font-weight: 800; margin: 6px 0 18px; cursor: pointer; word-break: break-all; }
+  .balance.hidden { letter-spacing: 4px; }
+  .card-row { display: flex; justify-content: space-between; font-size: 13px; opacity: .9; }
+  .card-row b { display: block; font-size: 15px; letter-spacing: 1px; }
+
+  .actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 20px 0; }
+  .act { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 12px 4px;
+    text-align: center; font-size: 12px; color: var(--text); cursor: pointer; }
+  .act div { font-size: 22px; margin-bottom: 4px; }
+  .act:active { transform: scale(.95); }
+
+  h3 { font-size: 16px; margin: 8px 0 10px; display: flex; justify-content: space-between; }
+  h3 a { color: var(--muted); font-size: 13px; font-weight: 400; cursor: pointer; }
+  .tx { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .tx .emo { width: 42px; height: 42px; border-radius: 12px; background: var(--panel);
+    display: grid; place-items: center; font-size: 20px; flex: none; }
+  .tx .info { flex: 1; min-width: 0; }
+  .tx .info b { display: block; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tx .info span { font-size: 12px; color: var(--muted); }
+  .tx .amt { font-weight: 700; font-size: 14px; white-space: nowrap; }
+  .plus { color: var(--green); } .minus { color: var(--red); }
+
+  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: none;
+    align-items: flex-end; justify-content: center; z-index: 10; }
+  .modal-bg.open { display: flex; }
+  .modal { background: var(--panel); width: 100%; max-width: 480px; border-radius: 22px 22px 0 0;
+    padding: 22px 16px calc(22px + env(safe-area-inset-bottom)); }
+  .modal h4 { margin: 0 0 14px; font-size: 18px; }
+  .modal label { font-size: 13px; color: var(--muted); display: block; margin: 10px 0 6px; }
+  .modal input { width: 100%; padding: 14px; border-radius: 12px; border: 1px solid var(--line);
+    background: var(--bg); color: var(--text); font-size: 16px; }
+  .quick { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .quick button { background: var(--bg); border: 1px solid var(--line); color: var(--text);
+    border-radius: 999px; padding: 8px 12px; font-size: 13px; cursor: pointer; }
+  .btn { width: 100%; margin-top: 16px; padding: 15px; border: 0; border-radius: 14px; font-size: 16px;
+    font-weight: 700; color: #fff; cursor: pointer; background: linear-gradient(90deg, var(--card1), var(--card2)); }
+  .btn.ghost { background: transparent; border: 1px solid var(--line); color: var(--muted); margin-top: 8px; }
+
+  .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(120px);
+    background: #fff; color: #1a1033; padding: 12px 18px; border-radius: 14px; font-size: 14px;
+    font-weight: 600; transition: transform .3s; z-index: 20; max-width: calc(100% - 32px); text-align: center; }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  footer { text-align: center; color: var(--muted); font-size: 11px; margin-top: 28px; }
+  .confetti { position: fixed; top: -20px; font-size: 22px; pointer-events: none; z-index: 30;
+    animation: fall linear forwards; }
+  @keyframes fall { to { transform: translateY(110vh) rotate(540deg); } }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo">🏦 <span>KnkBank</span></div>
+    <button class="icon-btn" id="eyeBtn" title="Bakiyeyi gizle">👁️</button>
+  </header>
+
+  <div class="hello" id="hello">Günaydın,</div>
+  <div class="name" id="nameEl">Kanka <small>✏️</small></div>
+
+  <div class="card">
+    <div class="label">Toplam Bakiye</div>
+    <div class="balance" id="balanceEl">₺0,00</div>
+    <div class="card-row">
+      <div>Kart Sahibi<b id="cardName">KANKA</b></div>
+      <div style="text-align:right">Kart No<b>**** 3169</b></div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <div class="act" data-act="send"><div>💸</div>Gönder</div>
+    <div class="act" data-act="receive"><div>🤑</div>Para İste</div>
+    <div class="act" data-act="edit"><div>✏️</div>Bakiye</div>
+    <div class="act" data-act="rich"><div>👑</div>Zengin Ol</div>
+  </div>
+
+  <h3>Son İşlemler <a id="clearTx">Temizle</a></h3>
+  <div id="txList"></div>
+
+  <footer>KnkBank™ — Tamamen şaka amaçlıdır, gerçek para yoktur, kimseyi dolandırmayın 😄</footer>
+</div>
+
+<div class="modal-bg" id="modalBg">
+  <div class="modal" id="modal"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const fmt = n => '₺' + Number(n).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const parseAmt = s => {
+    s = String(s).trim().replace(/[₺\s]/g, '');
+    if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+    else if (/^-?\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, '');
+    return parseFloat(s);
+  };
+
+  const DEFAULT = {
+    name: 'Kanka', balance: 1337.42, hidden: false,
+    tx: [
+      { e: '🍔', t: 'Gece 3 dürümü', d: 'Dün', a: -85 },
+      { e: '🎮', t: 'Oyunda ultiyi kaçırma cezası', d: 'Dün', a: -250 },
+      { e: '🐐', t: 'Annenden harçlık', d: '2 gün önce', a: 500 },
+      { e: '☕', t: 'Kahve (3. bugün)', d: '3 gün önce', a: -65 },
+    ]
+  };
+
+  let state;
+  try { state = JSON.parse(localStorage.getItem('knkbank')) || DEFAULT; } catch { state = DEFAULT; }
+  const save = () => { try { localStorage.setItem('knkbank', JSON.stringify(state)); } catch {} };
+
+  const jokesSend = ['Kankaya borç', 'Kira (ama kimin?)', 'Kebapçı Mehmet Usta', 'Sevgiliye çiçek (bilmiyor)', 'Netflix şifresi kiralama', 'Dayıya kahve parası'];
+  const jokesRecv = ['Kankadan borç iadesi (mucize)', 'Sokakta bulunan 20 lira', 'Bayram harçlığı', 'Elon Musk (yanlışlıkla)', 'Babandan "son kez" parası', 'Kripto (şans eseri)'];
+  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+
+  function render() {
+    const h = new Date().getHours();
+    $('hello').textContent = h < 12 ? 'Günaydın,' : h < 18 ? 'İyi günler,' : 'İyi akşamlar,';
+    $('nameEl').innerHTML = '';
+    $('nameEl').append(state.name + ' ');
+    const sm = document.createElement('small'); sm.textContent = '✏️'; $('nameEl').append(sm);
+    $('cardName').textContent = state.name.toLocaleUpperCase('tr-TR');
+    $('balanceEl').textContent = state.hidden ? '₺••••••' : fmt(state.balance);
+    $('balanceEl').classList.toggle('hidden', state.hidden);
+    $('eyeBtn').textContent = state.hidden ? '🙈' : '👁️';
+
+    const list = $('txList'); list.innerHTML = '';
+    if (!state.tx.length) list.innerHTML = '<p style="color:var(--muted);font-size:14px">Hiç işlem yok. Fakirlik mi, tutumluluk mu? 🤔</p>';
+    state.tx.slice(0, 30).forEach(x => {
+      const row = document.createElement('div'); row.className = 'tx';
+      row.innerHTML = `<div class="emo"></div><div class="info"><b></b><span></span></div><div class="amt ${x.a >= 0 ? 'plus' : 'minus'}"></div>`;
+      row.querySelector('.emo').textContent = x.e;
+      row.querySelector('b').textContent = x.t;
+      row.querySelector('span').textContent = x.d;
+      row.querySelector('.amt').textContent = (x.a >= 0 ? '+' : '-') + fmt(Math.abs(x.a));
+      list.append(row);
+    });
+    save();
+  }
+
+  function toast(msg) {
+    const t = $('toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 2400);
+  }
+
+  function confetti(chars = ['💸', '💰', '🤑', '💵', '🪙']) {
+    for (let i = 0; i < 28; i++) {
+      const c = document.createElement('div'); c.className = 'confetti';
+      c.textContent = pick(chars);
+      c.style.left = Math.random() * 100 + 'vw';
+      c.style.animationDuration = 1.5 + Math.random() * 2 + 's';
+      document.body.append(c); setTimeout(() => c.remove(), 4000);
+    }
+  }
+
+  function addTx(e, t, a) { state.tx.unshift({ e, t, d: 'Az önce', a }); }
+
+  function openModal(html, onSubmit) {
+    $('modal').innerHTML = html;
+    $('modalBg').classList.add('open');
+    const inp = $('modal').querySelector('input'); if (inp) setTimeout(() => inp.focus(), 50);
+    $('modal').querySelectorAll('[data-q]').forEach(b => b.onclick = () => { inp.value = b.dataset.q; });
+    $('modal').querySelector('.ok').onclick = () => { if (onSubmit() !== false) closeModal(); };
+    $('modal').querySelector('.ghost').onclick = closeModal;
+    $('modal').onkeydown = ev => { if (ev.key === 'Enter') $('modal').querySelector('.ok').click(); };
+  }
+  function closeModal() { $('modalBg').classList.remove('open'); }
+  $('modalBg').onclick = ev => { if (ev.target === $('modalBg')) closeModal(); };
+
+  function editName() {
+    openModal(`<h4>Adını değiştir kanka</h4>
+      <label>Yeni isim</label><input id="inName" maxlength="28">
+      <div class="quick"><button data-q="Kral">Kral</button><button data-q="Patron">Patron</button><button data-q="Zengin Kanka">Zengin Kanka</button><button data-q="Borçlu Ahmet">Borçlu Ahmet</button></div>
+      <button class="btn ok">Kaydet</button><button class="btn ghost">Vazgeç</button>`, () => {
+      const v = $('inName').value.trim();
+      if (!v) { toast('Boş isim olmaz be kanka 😅'); return false; }
+      state.name = v; render(); toast(`Artık adın ${v}. Hayırlı olsun 🎉`);
+    });
+    $('inName').value = state.name;
+  }
+
+  function editBalance() {
+    openModal(`<h4>Bakiyeyi ayarla 🪄</h4>
+      <label>Yeni bakiye (₺)</label><input id="inBal" inputmode="decimal" placeholder="örn. 1.000.000">
+      <div class="quick"><button data-q="0">0 (gerçekçi)</button><button data-q="1000000">1 Milyon</button><button data-q="999999999">Milyarder</button><button data-q="-500">Eksi 500 😭</button></div>
+      <button class="btn ok">Uygula</button><button class="btn ghost">Vazgeç</button>`, () => {
+      const v = parseAmt($('inBal').value);
+      if (isNaN(v)) { toast('Rakam gir kanka, şiir değil 📝'); return false; }
+      const diff = v - state.balance;
+      state.balance = v;
+      if (diff) addTx('🪄', diff > 0 ? 'Sihirli para yağmuru' : 'Para buharlaştı', diff);
+      render();
+      if (v >= 1000000) { confetti(); toast('Milyoner oldun, beni unutma 😎'); }
+      else if (v < 0) toast('Eksidesin kanka, dürüm yok artık 😂');
+      else toast('Bakiye güncellendi ✅');
+    });
+    $('inBal').value = String(state.balance).replace('.', ',');
+  }
+
+  function moneyModal(kind) {
+    const send = kind === 'send';
+    openModal(`<h4>${send ? 'Para gönder 💸' : 'Para iste 🤑'}</h4>
+      <label>${send ? 'Kime?' : 'Kimden?'}</label><input id="inWho" placeholder="${send ? 'örn. Kebapçı' : 'örn. Zengin dayı'}">
+      <label>Tutar (₺)</label><input id="inAmt" inputmode="decimal" placeholder="100">
+      <button class="btn ok">${send ? 'Gönder' : 'İste'}</button><button class="btn ghost">Vazgeç</button>`, () => {
+      const a = parseAmt($('inAmt').value);
+      if (isNaN(a) || a <= 0) { toast('Geçerli bir tutar yaz kanka'); return false; }
+      const who = $('inWho').value.trim() || pick(send ? jokesSend : jokesRecv);
+      if (send) {
+        if (a > state.balance) toast('Bakiye yetmedi ama KnkBank kredisi verdi 😏');
+        else toast(`${who} kişisine ${fmt(a)} gönderildi 🚀`);
+        state.balance -= a; addTx('💸', who, -a);
+      } else {
+        const lucky = Math.random() < .7;
+        if (lucky) { state.balance += a; addTx('🤑', who, a); toast(`${who} ${fmt(a)} yolladı! 🎉`); confetti(); }
+        else toast(`${who}: "Ay sonu olsun kanka" 🙄`);
+      }
+      render();
+    });
+    $('inWho').value = '';
+  }
+
+  function getRich() {
+    const a = Math.round((Math.random() * 50000 + 500) * 100) / 100;
+    const src = pick(jokesRecv);
+    state.balance += a; addTx('👑', src, a); render();
+    confetti(); toast(`${src}: +${fmt(a)} 🤑`);
+  }
+
+  $('nameEl').onclick = editName;
+  $('balanceEl').onclick = editBalance;
+  $('eyeBtn').onclick = () => { state.hidden = !state.hidden; render(); };
+  $('clearTx').onclick = () => { state.tx = []; render(); toast('Geçmiş silindi, delil yok 🕵️'); };
+  document.querySelectorAll('.act').forEach(b => b.onclick = () => {
+    ({ send: () => moneyModal('send'), receive: () => moneyModal('receive'), edit: editBalance, rich: getRich })[b.dataset.act]();
+  });
+
+  render();
+</script>
+</body>
+</html>
