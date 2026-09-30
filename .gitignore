@@ -10,3 +10,4 @@
 .cxx/
 *.apk.idsig
 /GuardFace-debug.apk
+/GuardFace*.apk
