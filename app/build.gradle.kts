@@ -31,6 +31,19 @@ android {
     buildFeatures {
         viewBinding = true
     }
+    packaging {
+        resources {
+            // JavaMail ships duplicate license/notice metadata across its two artifacts.
+            excludes += setOf(
+                "META-INF/NOTICE.md",
+                "META-INF/LICENSE.md",
+                "META-INF/NOTICE",
+                "META-INF/LICENSE",
+                "META-INF/DEPENDENCIES",
+                "META-INF/*.kotlin_module"
+            )
+        }
+    }
 }
 
 dependencies {
