@@ -61,8 +61,9 @@ dependencies {
     implementation("androidx.camera:camera-view:$camerax")
     implementation("androidx.lifecycle:lifecycle-service:2.8.4")
 
-    // ML Kit face detection (on-device, no network) — the "third-party face recognition" engine
-    implementation("com.google.mlkit:face-detection:16.1.7")
+    // ML Kit face detection — "thin" variant: the on-device model is delivered via Google Play
+    // Services instead of being bundled, keeping the APK small. Same API as com.google.mlkit.
+    implementation("com.google.android.gms:play-services-mlkit-face-detection:17.1.0")
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
