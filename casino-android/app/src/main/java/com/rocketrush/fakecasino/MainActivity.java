@@ -17,6 +17,7 @@ public class MainActivity extends Activity {
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true); // keeps the fake balance between launches
+        s.setMediaPlaybackRequiresUserGesture(false); // sound effects
         setContentView(web);
         web.loadUrl("file:///android_asset/index.html");
     }

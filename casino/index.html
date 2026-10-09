@@ -15,6 +15,8 @@
   header { text-align: center; padding: 20px 16px 8px; }
   h1 { margin: 0; font-size: 1.8em; letter-spacing: 1px; }
   .disclaimer { color: var(--muted); font-size: .85em; margin-top: 4px; }
+  header { position: relative; }
+  .mute { position: absolute; top: 16px; right: 16px; background: var(--panel); padding: 8px 10px; font-size: 1.2em; }
   .bank { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; margin: 14px 16px; }
   .chip { background: var(--panel); border-radius: 12px; padding: 10px 16px; text-align: center; min-width: 120px; }
   .chip b { display: block; font-size: 1.4em; color: var(--gold); }
@@ -82,6 +84,7 @@
 <body>
 <header>
   <h1>🎰 Fake Casino 🎰</h1>
+  <button id="muteBtn" class="mute" aria-label="Toggle sound">🔊</button>
   <div class="disclaimer">100% fake money. 0% real consequences. The house still wins, though.</div>
 </header>
 
@@ -195,6 +198,68 @@ const state = { balance: START, profit: 0, bailouts: 0 };
 try { Object.assign(state, JSON.parse(localStorage.getItem('fakeCasino') || '{}')); } catch (e) {}
 function save() { try { localStorage.setItem('fakeCasino', JSON.stringify(state)); } catch (e) {} }
 
+// ---------- Sound (synthesized with Web Audio, no files) ----------
+const sfx = {
+  ctx: null, engineOsc: null, engineGain: null,
+  muted: (() => { try { return localStorage.getItem('fakeCasinoMuted') === '1'; } catch (e) { return false; } })(),
+  ac() {
+    if (this.muted) return null;
+    if (!this.ctx) { const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null; this.ctx = new AC(); }
+    if (this.ctx.state === 'suspended') this.ctx.resume();
+    return this.ctx;
+  },
+  // One note: freq (Hz), dur (s), optional glide to slideTo, starting `at` seconds from now.
+  tone(freq, dur, { type = 'triangle', vol = .2, at = 0, slideTo } = {}) {
+    const c = this.ac(); if (!c) return;
+    const t = c.currentTime + at, o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t);
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.001, t + dur);
+    o.connect(g).connect(c.destination); o.start(t); o.stop(t + dur + .02);
+  },
+  noise(dur, { vol = .3, filter = 'lowpass', freq = 1000, at = 0 } = {}) {
+    const c = this.ac(); if (!c) return;
+    const t = c.currentTime + at, buf = c.createBuffer(1, Math.ceil(c.sampleRate * dur), c.sampleRate);
+    const d = buf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    const src = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
+    src.buffer = buf; f.type = filter; f.frequency.value = freq;
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.001, t + dur);
+    src.connect(f).connect(g).connect(c.destination); src.start(t);
+  },
+  bet()  { this.tone(700, .06, { type: 'square', vol: .08 }); },
+  tick() { this.tone(1800, .02, { type: 'square', vol: .04 }); },
+  thunk(){ this.tone(220, .12, { type: 'square', vol: .1, slideTo: 110 }); },
+  card() { this.noise(.07, { vol: .25, filter: 'highpass', freq: 2500 }); },
+  coin() { [0, .08, .16].forEach((at, i) => this.tone(1400 + i * 300, .25, { type: 'sine', vol: .12, at })); },
+  win()  { [523, 659, 784, 1047].forEach((f, i) => this.tone(f, .18, { vol: .18, at: i * .08 })); },
+  jackpot() {
+    [523, 659, 784, 1047, 784, 1047, 1319, 1568].forEach((f, i) => this.tone(f, .22, { type: 'square', vol: .1, at: i * .1 }));
+    this.coin(); setTimeout(() => this.coin(), 400); setTimeout(() => this.coin(), 800);
+  },
+  lose() { // wah wah wah waaah
+    [392, 370, 349].forEach((f, i) => this.tone(f, .3, { type: 'sawtooth', vol: .1, at: i * .32 }));
+    this.tone(330, .9, { type: 'sawtooth', vol: .1, at: .96, slideTo: 300 });
+  },
+  push() { this.tone(440, .15, { vol: .12 }); this.tone(440, .15, { vol: .12, at: .18 }); },
+  explode() { this.noise(1.2, { vol: .6, freq: 600 }); this.tone(120, .8, { type: 'sawtooth', vol: .25, slideTo: 30 }); },
+  engineStart() {
+    const c = this.ac(); if (!c) return;
+    this.engineOsc = c.createOscillator(); this.engineGain = c.createGain();
+    this.engineOsc.type = 'sawtooth'; this.engineOsc.frequency.value = 80; this.engineGain.gain.value = .05;
+    this.engineOsc.connect(this.engineGain).connect(c.destination); this.engineOsc.start();
+  },
+  engine(mult) { if (this.engineOsc) this.engineOsc.frequency.setTargetAtTime(Math.min(80 + mult * 40, 900), this.ctx.currentTime, .05); },
+  engineStop() { if (this.engineOsc) { this.engineOsc.stop(); this.engineOsc = null; } },
+};
+function renderMute() { $('muteBtn').textContent = sfx.muted ? '🔇' : '🔊'; }
+$('muteBtn').onclick = () => {
+  sfx.muted = !sfx.muted;
+  if (sfx.muted) sfx.engineStop();
+  try { localStorage.setItem('fakeCasinoMuted', sfx.muted ? '1' : '0'); } catch (e) {}
+  renderMute(); sfx.bet();
+};
+renderMute();
+
 const brokeLines = [
   "Your fake wallet called. It wants a divorce.",
   "Bro really said 'one more spin' 47 times.",
@@ -222,7 +287,7 @@ function takeBet(inputId, msgEl) {
     else say(msgEl, `You only have ${state.balance}. Nice try though.`, 'lose');
     return 0;
   }
-  state.balance -= bet; state.profit -= bet; render();
+  state.balance -= bet; state.profit -= bet; render(); sfx.bet();
   return bet;
 }
 function pay(amount) { state.balance += amount; state.profit += amount; render(); }
@@ -257,6 +322,7 @@ $('crashGo').onclick = () => {
   $('rocket').textContent = '🚀';
   $('crashGo').disabled = true; $('crashOut').disabled = false;
   say($('crashMsg'), 'Liftoff! 🔥');
+  sfx.engineStart();
   crash.raf = requestAnimationFrame(tick);
 };
 
@@ -265,6 +331,7 @@ function tick(now) {
   crash.mult = Math.floor(Math.exp(0.15 * t) * 100) / 100;
   if (crash.mult >= crash.point) return explode();
   $('mult').textContent = crash.mult.toFixed(2) + 'x';
+  sfx.engine(crash.mult);
   const p = Math.min(1, Math.log(crash.mult) / Math.log(10));
   $('rocket').style.left = (8 + p * 72) + '%';
   $('rocket').style.bottom = (8 + p * 62) + '%';
@@ -273,6 +340,7 @@ function tick(now) {
 
 function endFlight() {
   cancelAnimationFrame(crash.raf);
+  sfx.engineStop();
   crash.running = false;
   $('crashGo').disabled = false; $('crashOut').disabled = true;
   const h = document.createElement('span');
@@ -287,6 +355,7 @@ function explode() {
   $('sky').classList.add('crashed');
   $('mult').textContent = crash.point.toFixed(2) + 'x';
   $('rocket').textContent = '💥';
+  sfx.explode();
   const roasts = ['Should have cashed out, champ.', 'Houston, we have a problem.', 'Greed: 1, You: 0.', 'RIP rocket. RIP coins.'];
   say($('crashMsg'), `Boom at ${crash.point.toFixed(2)}x. ${roasts[Math.floor(Math.random() * roasts.length)]}`, 'lose');
   checkBroke();
@@ -299,6 +368,7 @@ $('crashOut').onclick = () => {
   endFlight();
   pay(win);
   say($('crashMsg'), `Cashed out at ${mult.toFixed(2)}x → +${win}. Rocket kept going to ${crash.point.toFixed(2)}x 👀`, 'win');
+  sfx.win();
 };
 
 // ---------- Slots ----------
@@ -320,9 +390,9 @@ $('slotGo').onclick = () => {
   say($('slotMsg'), 'Spinning...');
   reels.forEach((r, i) => {
     r.classList.add('spin');
-    const flicker = setInterval(() => { r.textContent = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)]; }, 70);
+    const flicker = setInterval(() => { r.textContent = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)]; sfx.tick(); }, 70);
     setTimeout(() => {
-      clearInterval(flicker); r.classList.remove('spin'); r.textContent = result[i];
+      clearInterval(flicker); r.classList.remove('spin'); r.textContent = result[i]; sfx.thunk();
       if (i === reels.length - 1) settleSlots(result, bet);
     }, 600 + i * 400);
   });
@@ -335,10 +405,12 @@ function settleSlots([a, b, c], bet) {
   else if ([a, b, c].filter(s => s === '🍒').length === 2) mult = 2;
   if (mult) {
     pay(bet * mult);
+    mult >= 40 ? sfx.jackpot() : sfx.win();
     say($('slotMsg'), mult >= 40 ? `JACKPOT ×${mult}!!! +${bet * mult} 🤑🤑🤑` : `Winner ×${mult}! +${bet * mult}`, 'win');
   } else {
     const lines = ['Nothing. The machine is laughing at you.', 'So close! (It wasn\'t close.)', 'The slot machine thanks you for your donation.'];
     say($('slotMsg'), lines[Math.floor(Math.random() * lines.length)], 'lose');
+    sfx.lose();
     checkBroke();
   }
 }
@@ -348,6 +420,7 @@ document.querySelectorAll('#coin button[data-side]').forEach(btn => btn.onclick 
   const bet = takeBet('coinBet', $('coinMsg'));
   if (!bet) return;
   const side = Math.random() < 0.5 ? 'H' : 'T';
+  sfx.coin();
   const coin = $('coinFace');
   coin.classList.remove('flip'); void coin.offsetWidth; coin.classList.add('flip');
   document.querySelectorAll('#coin button').forEach(b => b.disabled = true);
@@ -358,8 +431,10 @@ document.querySelectorAll('#coin button[data-side]').forEach(btn => btn.onclick 
       const win = Math.floor(bet * 1.96);
       pay(win);
       say($('coinMsg'), `${side === 'H' ? 'Heads' : 'Tails'}! +${win}. Big brain move.`, 'win');
+      sfx.win();
     } else {
       say($('coinMsg'), `${side === 'H' ? 'Heads' : 'Tails'}. The coin chose violence.`, 'lose');
+      sfx.lose();
       checkBroke();
     }
   }, 600);
@@ -416,18 +491,19 @@ $('bjDeal').onclick = () => {
   if (!bet) return;
   Object.assign(bj, { bet, active: true, player: [draw(), draw()], dealer: [draw(), draw()] });
   say($('bjMsg'), 'Your move.');
+  [0, 120, 240, 360].forEach(ms => setTimeout(() => sfx.card(), ms));
   if (isBlackjack(bj.player) || isBlackjack(bj.dealer)) return finishBj();
   renderTable(true); setBjButtons();
 };
 $('bjHit').onclick = () => {
-  bj.player.push(draw());
+  bj.player.push(draw()); sfx.card();
   if (handValue(bj.player) >= 21) return finishBj();
   renderTable(true); setBjButtons();
 };
 $('bjStand').onclick = () => finishBj();
 $('bjDouble').onclick = () => {
   state.balance -= bj.bet; state.profit -= bj.bet; bj.bet *= 2; render();
-  bj.player.push(draw());
+  bj.player.push(draw()); sfx.card();
   finishBj();
 };
 
@@ -450,6 +526,8 @@ function finishBj() {
 
   if (win) pay(win);
   say($('bjMsg'), text, cls);
+  if (isBlackjack(bj.player) && cls === 'win') sfx.jackpot();
+  else ({ win: () => sfx.win(), lose: () => sfx.lose() }[cls] || (() => sfx.push()))();
   if (!win) checkBroke();
 }
 
@@ -501,13 +579,14 @@ $('rouSpin').onclick = () => {
   const target = ((-idx * SEG) % 360 + 360) % 360;
   wheelAngle += 360 * 5 + ((target - wheelAngle % 360) + 360) % 360;
   $('wheel').style.transform = `rotate(${wheelAngle}deg)`;
+  for (let t = 0, gap = .04; t < 3.9; t += gap, gap *= 1.07) sfx.tone(1800, .02, { type: 'square', vol: .04, at: t });
 
   setTimeout(() => {
     wheelBusy = false; $('rouSpin').disabled = false;
     const mult = rouMultiplier(type, n, pick);
     const label = `${n} ${colorOf(n) === 'red' ? '🔴' : colorOf(n) === 'black' ? '⚫' : '🟢'}`;
-    if (mult) { pay(bet * mult); say($('rouMsg'), `${label}! +${bet * mult} ${mult === 36 ? '🤯 STRAIGHT UP!' : ''}`, 'win'); }
-    else { say($('rouMsg'), n === 0 ? `${label}. Zero. The house's favourite number.` : `${label}. Not your colour today.`, 'lose'); checkBroke(); }
+    if (mult) { pay(bet * mult); mult === 36 ? sfx.jackpot() : sfx.win(); say($('rouMsg'), `${label}! +${bet * mult} ${mult === 36 ? '🤯 STRAIGHT UP!' : ''}`, 'win'); }
+    else { say($('rouMsg'), n === 0 ? `${label}. Zero. The house's favourite number.` : `${label}. Not your colour today.`, 'lose'); sfx.lose(); checkBroke(); }
     const h = document.createElement('span');
     h.textContent = n; h.style.color = { red: 'var(--red)', black: 'var(--text)', green: 'var(--green)' }[colorOf(n)];
     $('rouHistory').prepend(h);
