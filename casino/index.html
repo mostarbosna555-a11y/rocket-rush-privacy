@@ -10,6 +10,7 @@
     --gold: #ffcc33; --green: #3ddc84; --red: #ff4d6d; --blue: #4d7aff;
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   body { margin: 0; font-family: -apple-system, 'Segoe UI', Arial, sans-serif; background: var(--bg);
     color: var(--text); min-height: 100vh; }
   header { text-align: center; padding: 20px 16px 8px; }
@@ -185,6 +186,14 @@
   .handLabel { color: var(--gold); font-family: var(--serif); text-transform: uppercase; letter-spacing: 1px; }
   .wheelWrap svg { filter: drop-shadow(0 8px 14px #000c); }
   #brokeBox { border-color: var(--red); }
+  input[type=text], input[type=password] { font: inherit; width: 150px; padding: 9px; border-radius: 10px;
+    background: var(--panel2); border: 1px solid #8b6914; color: var(--text); }
+  .lb { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: .95em; }
+  .lb th { color: var(--gold); font-family: var(--serif); text-align: left; padding: 6px; border-bottom: 1px solid #8b6914; }
+  .lb td { padding: 7px 6px; border-bottom: 1px solid #ffffff14; }
+  .lb td:nth-child(3) { color: var(--gold); font-weight: 700; }
+  .lb tr.me td { background: #f5c54226; }
+  .lb button { padding: 4px 10px; font-size: .85em; }
 </style>
 </head>
 <body>
@@ -213,6 +222,8 @@
   <button data-tab="coin">🪙 Coin Flip</button>
   <button data-tab="blackjack">🃏 Blackjack</button>
   <button data-tab="roulette">🎡 Roulette</button>
+  <button data-tab="leaderboard">🏆 Leaderboard</button>
+  <button data-tab="settings">⚙️ Settings</button>
 </nav>
 
 <main>
@@ -292,6 +303,37 @@
     </div>
     <div class="msg" id="rouMsg"></div>
     <div class="history" id="rouHistory"></div>
+  </section>
+
+  <section id="leaderboard">
+    <h2>🏆 Leaderboard</h2>
+    <p class="paytable">Best fake balance of every player. Set your nickname in ⚙️ Settings to join.</p>
+    <table class="lb"><thead><tr><th>#</th><th>Player</th><th>Best</th><th>💸</th></tr></thead><tbody id="lbBody"></tbody></table>
+    <div class="row" style="justify-content:center"><button id="lbRefresh">Refresh</button></div>
+    <div class="msg" id="lbMsg"></div>
+  </section>
+
+  <section id="settings">
+    <h2>⚙️ Settings</h2>
+    <div class="row">
+      <label>Nickname <input type="text" id="nickInput" maxlength="16" placeholder="e.g. RocketKing"></label>
+      <button class="go" id="nickSave">Save</button>
+    </div>
+    <div class="msg" id="nickMsg"></div>
+    <h2 style="margin-top:24px">🔐 Admin</h2>
+    <div id="adminLogin" class="row">
+      <label>PIN <input type="password" id="adminPin" inputmode="numeric" maxlength="8"></label>
+      <button id="adminGo">Log in</button>
+    </div>
+    <div id="adminPanel" hidden>
+      <p class="paytable">Remove rude nicknames or wipe the board. Balances can't be edited.</p>
+      <table class="lb"><tbody id="adminBody"></tbody></table>
+      <div class="row" style="justify-content:center">
+        <button class="stop" id="adminReset">Reset leaderboard</button>
+        <button id="adminLogout">Log out</button>
+      </div>
+    </div>
+    <div class="msg" id="adminMsg"></div>
   </section>
 
   <section id="brokeBox" class="broke">
@@ -776,6 +818,110 @@ $('rouSpin').onclick = () => {
     $('rouHistory').prepend(h);
     while ($('rouHistory').children.length > 12) $('rouHistory').lastChild.remove();
   }, 4100);
+};
+
+// ---------- Online leaderboard ----------
+const API = 'https://leaderboard-production-6cc7.up.railway.app';
+const playerId = (() => {
+  let id = null;
+  try { id = localStorage.getItem('fakeCasinoId'); } catch (e) {}
+  if (!id) {
+    id = (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
+    try { localStorage.setItem('fakeCasinoId', id); } catch (e) {}
+  }
+  return id;
+})();
+
+async function api(path, body) {
+  const res = await fetch(API + path, body
+    ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+    : undefined);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'server error');
+  return data;
+}
+
+// Send the score a few seconds after the balance stops changing.
+let scoreTimer = null;
+function queueScore() {
+  if (!state.name) return;
+  clearTimeout(scoreTimer);
+  scoreTimer = setTimeout(() => {
+    api('/api/score', { id: playerId, name: state.name, balance: state.balance, bailouts: state.bailouts }).catch(() => {});
+  }, 3000);
+}
+const baseRender = render;
+render = function () { baseRender(); queueScore(); };
+
+function lbRow(cells, opts = {}) {
+  const tr = document.createElement('tr');
+  if (opts.me) tr.className = 'me';
+  for (const c of cells) {
+    const td = document.createElement('td');
+    if (c instanceof Node) td.appendChild(c); else td.textContent = c;
+    tr.appendChild(td);
+  }
+  return tr;
+}
+
+async function loadLeaderboard() {
+  say($('lbMsg'), 'Loading...');
+  try {
+    const rows = await api('/api/leaderboard');
+    $('lbBody').innerHTML = '';
+    rows.forEach((r, i) => $('lbBody').appendChild(lbRow(
+      [i === 0 ? '👑' : i + 1, r.name, r.best.toLocaleString(), r.bailouts], { me: r.id === playerId })));
+    say($('lbMsg'), rows.length ? '' : 'Nobody here yet. Be the first legend.');
+  } catch (e) {
+    say($('lbMsg'), 'Leaderboard is offline (no internet?).', 'lose');
+  }
+}
+$('lbRefresh').onclick = loadLeaderboard;
+document.querySelector('nav button[data-tab=leaderboard]').addEventListener('click', loadLeaderboard);
+
+$('nickInput').value = state.name || '';
+$('nickSave').onclick = () => {
+  const name = $('nickInput').value.replace(/[<>&"'`]/g, '').trim().slice(0, 16);
+  if (!name) return say($('nickMsg'), 'Type a nickname first.', 'lose');
+  state.name = name; $('nickInput').value = name; render();
+  api('/api/score', { id: playerId, name, balance: state.balance, bailouts: state.bailouts })
+    .then(() => say($('nickMsg'), `Welcome to the board, ${name}! 🏆`, 'win'))
+    .catch(() => say($('nickMsg'), 'Saved. It will sync when you are online.', ''));
+};
+
+// Admin: PIN is only kept in memory and checked by the server.
+let adminPin = '';
+async function loadAdmin() {
+  const rows = await api('/api/leaderboard');
+  $('adminBody').innerHTML = '';
+  rows.forEach(r => {
+    const del = document.createElement('button');
+    del.className = 'stop'; del.textContent = '🗑️';
+    del.onclick = async () => {
+      if (!confirm(`Remove ${r.name} from the leaderboard?`)) return;
+      try { await api('/api/admin/delete', { pin: adminPin, id: r.id }); say($('adminMsg'), `${r.name} removed.`, 'win'); loadAdmin(); }
+      catch (e) { say($('adminMsg'), e.message, 'lose'); }
+    };
+    $('adminBody').appendChild(lbRow([r.name, r.best.toLocaleString(), del]));
+  });
+  if (!rows.length) $('adminBody').appendChild(lbRow(['Board is empty.']));
+}
+$('adminGo').onclick = async () => {
+  try {
+    await api('/api/admin/login', { pin: $('adminPin').value });
+    adminPin = $('adminPin').value; $('adminPin').value = '';
+    $('adminLogin').hidden = true; $('adminPanel').hidden = false;
+    say($('adminMsg'), 'Logged in as admin 😎', 'win');
+    loadAdmin();
+  } catch (e) { say($('adminMsg'), e.message, 'lose'); }
+};
+$('adminLogout').onclick = () => {
+  adminPin = ''; $('adminLogin').hidden = false; $('adminPanel').hidden = true; say($('adminMsg'), '');
+};
+$('adminReset').onclick = async () => {
+  if (!confirm('Wipe the whole leaderboard? This cannot be undone.')) return;
+  try { await api('/api/admin/reset', { pin: adminPin }); say($('adminMsg'), 'Leaderboard wiped. Fresh start!', 'win'); loadAdmin(); }
+  catch (e) { say($('adminMsg'), e.message, 'lose'); }
 };
 
 render();
