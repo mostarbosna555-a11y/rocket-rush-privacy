@@ -1,0 +1,26 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.rocketrush.fakecasino'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.rocketrush.fakecasino'
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName '1.0'
+    }
+
+    // Ship the web casino as-is, so the site and the app never drift apart.
+    sourceSets {
+        main.assets.srcDirs = ['../../casino']
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
