@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fake Casino</title>
+<style>
+  :root {
+    --bg: #0e0b1f; --panel: #1b1636; --panel2: #251e4a; --text: #f3efff; --muted: #a59cc9;
+    --gold: #ffcc33; --green: #3ddc84; --red: #ff4d6d; --blue: #4d7aff;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, 'Segoe UI', Arial, sans-serif; background: var(--bg);
+    color: var(--text); min-height: 100vh; }
+  header { text-align: center; padding: 20px 16px 8px; }
+  h1 { margin: 0; font-size: 1.8em; letter-spacing: 1px; }
+  .disclaimer { color: var(--muted); font-size: .85em; margin-top: 4px; }
+  .bank { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; margin: 14px 16px; }
+  .chip { background: var(--panel); border-radius: 12px; padding: 10px 16px; text-align: center; min-width: 120px; }
+  .chip b { display: block; font-size: 1.4em; color: var(--gold); }
+  .chip small { color: var(--muted); }
+  nav { display: flex; justify-content: center; gap: 8px; margin: 8px 16px; flex-wrap: wrap; }
+  nav button { background: var(--panel); color: var(--text); border: 2px solid transparent; }
+  nav button.active { border-color: var(--gold); }
+  main { max-width: 560px; margin: 0 auto; padding: 0 16px 40px; }
+  section { display: none; background: var(--panel); border-radius: 16px; padding: 18px; margin-top: 12px; }
+  section.active { display: block; }
+  h2 { margin-top: 0; }
+  button { font: inherit; font-weight: 700; padding: 10px 16px; border-radius: 10px; border: 0; cursor: pointer;
+    background: var(--blue); color: #fff; }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+  button.go { background: var(--green); color: #062; }
+  button.stop { background: var(--gold); color: #432; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 10px 0; }
+  input[type=number] { font: inherit; width: 110px; padding: 9px; border-radius: 10px; border: 0;
+    background: var(--panel2); color: var(--text); }
+  label { color: var(--muted); }
+  .msg { min-height: 1.6em; margin-top: 10px; font-weight: 600; }
+  .win { color: var(--green); } .lose { color: var(--red); }
+
+  /* Slots */
+  .reels { display: flex; justify-content: center; gap: 10px; margin: 14px 0; }
+  .reel { width: 84px; height: 84px; background: var(--panel2); border-radius: 14px; display: grid;
+    place-items: center; font-size: 48px; }
+  .reel.spin { animation: shake .1s infinite; }
+  @keyframes shake { 50% { transform: translateY(-4px); } }
+  .paytable { color: var(--muted); font-size: .85em; }
+
+  /* Crash */
+  .sky { position: relative; height: 220px; background: linear-gradient(#060414, #251e4a); border-radius: 14px;
+    overflow: hidden; }
+  .mult { position: absolute; top: 12px; left: 0; right: 0; text-align: center; font-size: 2.4em; font-weight: 800; }
+  .rocket { position: absolute; font-size: 40px; left: 8%; bottom: 8%; transition: none; }
+  .crashed .mult { color: var(--red); }
+  .history { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; font-size: .85em; }
+  .history span { background: var(--panel2); padding: 3px 8px; border-radius: 8px; }
+
+  /* Coin */
+  .coin { width: 120px; height: 120px; margin: 14px auto; border-radius: 50%; background: var(--gold); color: #432;
+    display: grid; place-items: center; font-size: 2.6em; font-weight: 800; }
+  .coin.flip { animation: flip .6s ease-in-out; }
+  @keyframes flip { 50% { transform: rotateY(900deg) scale(1.2); } }
+
+  .broke { text-align: center; }
+  footer { text-align: center; color: var(--muted); font-size: .8em; padding: 0 16px 24px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🎰 Fake Casino 🎰</h1>
+  <div class="disclaimer">100% fake money. 0% real consequences. The house still wins, though.</div>
+</header>
+
+<div class="bank">
+  <div class="chip"><b id="balance">1000</b><small>fake coins</small></div>
+  <div class="chip"><b id="profit">0</b><small>net profit</small></div>
+  <div class="chip"><b id="bailouts">0</b><small>bailouts taken</small></div>
+</div>
+
+<nav>
+  <button data-tab="crash" class="active">🚀 Rocket Crash</button>
+  <button data-tab="slots">🎰 Slots</button>
+  <button data-tab="coin">🪙 Coin Flip</button>
+</nav>
+
+<main>
+  <section id="crash" class="active">
+    <h2>🚀 Rocket Crash</h2>
+    <p class="paytable">The rocket goes up, the multiplier goes up. Cash out before it explodes. Simple. Greedy people explode.</p>
+    <div class="sky" id="sky"><div class="mult" id="mult">1.00x</div><div class="rocket" id="rocket">🚀</div></div>
+    <div class="row">
+      <label>Bet <input type="number" id="crashBet" value="50" min="1"></label>
+      <button class="go" id="crashGo">Launch</button>
+      <button class="stop" id="crashOut" disabled>Cash out</button>
+    </div>
+    <div class="msg" id="crashMsg"></div>
+    <div class="history" id="crashHistory"></div>
+  </section>
+
+  <section id="slots">
+    <h2>🎰 Slots</h2>
+    <div class="reels"><div class="reel">🍒</div><div class="reel">🍋</div><div class="reel">💎</div></div>
+    <div class="row">
+      <label>Bet <input type="number" id="slotBet" value="20" min="1"></label>
+      <button class="go" id="slotGo">Spin</button>
+    </div>
+    <div class="msg" id="slotMsg"></div>
+    <p class="paytable">Three of a kind: 🍒 ×5 · 🍋 ×8 · 🔔 ×12 · ⭐ ×20 · 💎 ×40 · 7️⃣ ×100. Two 🍒 anywhere: ×2.</p>
+  </section>
+
+  <section id="coin">
+    <h2>🪙 Coin Flip</h2>
+    <p class="paytable">50/50. Pays ×1.96 because the house needs to eat too.</p>
+    <div class="coin" id="coinFace">?</div>
+    <div class="row">
+      <label>Bet <input type="number" id="coinBet" value="50" min="1"></label>
+      <button class="go" data-side="H">Heads</button>
+      <button class="go" data-side="T">Tails</button>
+    </div>
+    <div class="msg" id="coinMsg"></div>
+  </section>
+
+  <section id="brokeBox" class="broke">
+    <h2>💸 You're broke, legend</h2>
+    <p id="brokeLine"></p>
+    <button class="go" id="bailout">Take a bailout (+500)</button>
+  </section>
+</main>
+
+<footer>Fun fact: in real casinos the math is the same, except the money is real and nobody hands you a bailout button.</footer>
+
+<script>
+const START = 1000, BAILOUT = 500;
+const $ = id => document.getElementById(id);
+
+const state = { balance: START, profit: 0, bailouts: 0 };
+try { Object.assign(state, JSON.parse(localStorage.getItem('fakeCasino') || '{}')); } catch (e) {}
+function save() { try { localStorage.setItem('fakeCasino', JSON.stringify(state)); } catch (e) {} }
+
+const brokeLines = [
+  "Your fake wallet called. It wants a divorce.",
+  "Bro really said 'one more spin' 47 times.",
+  "Even the rocket feels bad for you.",
+  "The house sends its regards. And a fruit basket.",
+  "Statistically, this was always going to happen. Statistically, you'll do it again.",
+];
+
+function render() {
+  $('balance').textContent = state.balance;
+  $('profit').textContent = (state.profit > 0 ? '+' : '') + state.profit;
+  $('profit').style.color = state.profit < 0 ? 'var(--red)' : 'var(--green)';
+  $('bailouts').textContent = state.bailouts;
+  save();
+}
+
+function say(el, text, cls) { el.textContent = text; el.className = 'msg ' + (cls || ''); }
+
+// Validates the bet and takes it from the balance. Returns the bet or 0 on failure.
+function takeBet(inputId, msgEl) {
+  const bet = Math.floor(Number($(inputId).value));
+  if (!(bet >= 1)) { say(msgEl, 'Bet at least 1 coin, you cheapskate.', 'lose'); return 0; }
+  if (bet > state.balance) {
+    if (state.balance === 0) showBroke();
+    else say(msgEl, `You only have ${state.balance}. Nice try though.`, 'lose');
+    return 0;
+  }
+  state.balance -= bet; state.profit -= bet; render();
+  return bet;
+}
+function pay(amount) { state.balance += amount; state.profit += amount; render(); }
+
+function checkBroke() { if (state.balance === 0) showBroke(); }
+function showBroke() {
+  $('brokeLine').textContent = brokeLines[Math.floor(Math.random() * brokeLines.length)];
+  $('brokeBox').classList.add('active');
+}
+$('bailout').onclick = () => {
+  state.balance += BAILOUT; state.bailouts++; render();
+  $('brokeBox').classList.remove('active');
+};
+
+// Tabs
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+  if (crash.running) return; // no running away mid-flight
+  document.querySelectorAll('nav button').forEach(x => x.classList.toggle('active', x === b));
+  document.querySelectorAll('main section:not(#brokeBox)').forEach(s => s.classList.toggle('active', s.id === b.dataset.tab));
+});
+
+// ---------- Rocket Crash ----------
+// Crash point with ~3% house edge: P(crash >= m) = 0.97 / m
+const crash = { running: false, bet: 0, point: 0, start: 0, mult: 1, raf: 0 };
+function rollCrashPoint() { return Math.max(1, Math.floor(97 / (1 - Math.random())) / 100); }
+
+$('crashGo').onclick = () => {
+  const bet = takeBet('crashBet', $('crashMsg'));
+  if (!bet) return;
+  Object.assign(crash, { running: true, bet, point: rollCrashPoint(), start: performance.now(), mult: 1 });
+  $('sky').classList.remove('crashed');
+  $('rocket').textContent = '🚀';
+  $('crashGo').disabled = true; $('crashOut').disabled = false;
+  say($('crashMsg'), 'Liftoff! 🔥');
+  crash.raf = requestAnimationFrame(tick);
+};
+
+function tick(now) {
+  const t = (now - crash.start) / 1000;
+  crash.mult = Math.floor(Math.exp(0.15 * t) * 100) / 100;
+  if (crash.mult >= crash.point) return explode();
+  $('mult').textContent = crash.mult.toFixed(2) + 'x';
+  const p = Math.min(1, Math.log(crash.mult) / Math.log(10));
+  $('rocket').style.left = (8 + p * 72) + '%';
+  $('rocket').style.bottom = (8 + p * 62) + '%';
+  crash.raf = requestAnimationFrame(tick);
+}
+
+function endFlight() {
+  cancelAnimationFrame(crash.raf);
+  crash.running = false;
+  $('crashGo').disabled = false; $('crashOut').disabled = true;
+  const h = document.createElement('span');
+  h.textContent = crash.point.toFixed(2) + 'x';
+  h.style.color = crash.point >= 2 ? 'var(--green)' : 'var(--red)';
+  $('crashHistory').prepend(h);
+  while ($('crashHistory').children.length > 12) $('crashHistory').lastChild.remove();
+}
+
+function explode() {
+  endFlight();
+  $('sky').classList.add('crashed');
+  $('mult').textContent = crash.point.toFixed(2) + 'x';
+  $('rocket').textContent = '💥';
+  const roasts = ['Should have cashed out, champ.', 'Houston, we have a problem.', 'Greed: 1, You: 0.', 'RIP rocket. RIP coins.'];
+  say($('crashMsg'), `Boom at ${crash.point.toFixed(2)}x. ${roasts[Math.floor(Math.random() * roasts.length)]}`, 'lose');
+  checkBroke();
+}
+
+$('crashOut').onclick = () => {
+  if (!crash.running) return;
+  const win = Math.floor(crash.bet * crash.mult);
+  const mult = crash.mult;
+  endFlight();
+  pay(win);
+  say($('crashMsg'), `Cashed out at ${mult.toFixed(2)}x → +${win}. Rocket kept going to ${crash.point.toFixed(2)}x 👀`, 'win');
+};
+
+// ---------- Slots ----------
+const SYMBOLS = ['🍒', '🍋', '🔔', '⭐', '💎', '7️⃣'];
+const WEIGHTS = [30, 25, 18, 12, 9, 6];
+const PAYOUT = { '🍒': 5, '🍋': 8, '🔔': 12, '⭐': 20, '💎': 40, '7️⃣': 100 };
+function pickSymbol() {
+  let r = Math.random() * WEIGHTS.reduce((a, b) => a + b);
+  for (let i = 0; i < SYMBOLS.length; i++) if ((r -= WEIGHTS[i]) < 0) return SYMBOLS[i];
+  return SYMBOLS[0];
+}
+
+$('slotGo').onclick = () => {
+  const bet = takeBet('slotBet', $('slotMsg'));
+  if (!bet) return;
+  const reels = document.querySelectorAll('.reel');
+  const result = [pickSymbol(), pickSymbol(), pickSymbol()];
+  $('slotGo').disabled = true;
+  say($('slotMsg'), 'Spinning...');
+  reels.forEach((r, i) => {
+    r.classList.add('spin');
+    const flicker = setInterval(() => { r.textContent = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)]; }, 70);
+    setTimeout(() => {
+      clearInterval(flicker); r.classList.remove('spin'); r.textContent = result[i];
+      if (i === reels.length - 1) settleSlots(result, bet);
+    }, 600 + i * 400);
+  });
+};
+
+function settleSlots([a, b, c], bet) {
+  $('slotGo').disabled = false;
+  let mult = 0;
+  if (a === b && b === c) mult = PAYOUT[a];
+  else if ([a, b, c].filter(s => s === '🍒').length === 2) mult = 2;
+  if (mult) {
+    pay(bet * mult);
+    say($('slotMsg'), mult >= 40 ? `JACKPOT ×${mult}!!! +${bet * mult} 🤑🤑🤑` : `Winner ×${mult}! +${bet * mult}`, 'win');
+  } else {
+    const lines = ['Nothing. The machine is laughing at you.', 'So close! (It wasn\'t close.)', 'The slot machine thanks you for your donation.'];
+    say($('slotMsg'), lines[Math.floor(Math.random() * lines.length)], 'lose');
+    checkBroke();
+  }
+}
+
+// ---------- Coin Flip ----------
+document.querySelectorAll('#coin button[data-side]').forEach(btn => btn.onclick = () => {
+  const bet = takeBet('coinBet', $('coinMsg'));
+  if (!bet) return;
+  const side = Math.random() < 0.5 ? 'H' : 'T';
+  const coin = $('coinFace');
+  coin.classList.remove('flip'); void coin.offsetWidth; coin.classList.add('flip');
+  document.querySelectorAll('#coin button').forEach(b => b.disabled = true);
+  setTimeout(() => {
+    coin.textContent = side;
+    document.querySelectorAll('#coin button').forEach(b => b.disabled = false);
+    if (side === btn.dataset.side) {
+      const win = Math.floor(bet * 1.96);
+      pay(win);
+      say($('coinMsg'), `${side === 'H' ? 'Heads' : 'Tails'}! +${win}. Big brain move.`, 'win');
+    } else {
+      say($('coinMsg'), `${side === 'H' ? 'Heads' : 'Tails'}. The coin chose violence.`, 'lose');
+      checkBroke();
+    }
+  }, 600);
+});
+
+render();
+checkBroke();
+</script>
+</body>
+</html>
