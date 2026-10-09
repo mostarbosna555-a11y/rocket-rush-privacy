@@ -16,7 +16,7 @@
   h1 { margin: 0; font-size: 1.8em; letter-spacing: 1px; }
   .disclaimer { color: var(--muted); font-size: .85em; margin-top: 4px; }
   header { position: relative; }
-  .mute { position: absolute; top: 16px; right: 16px; background: var(--panel); padding: 8px 10px; font-size: 1.2em; }
+  .mute { padding: 6px 12px; font-size: 1.1em; }
   .bank { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; margin: 14px 16px; }
   .chip { background: var(--panel); border-radius: 12px; padding: 10px 16px; text-align: center; min-width: 120px; }
   .chip b { display: block; font-size: 1.4em; color: var(--gold); }
@@ -102,24 +102,109 @@
 
   .broke { text-align: center; }
   footer { text-align: center; color: var(--muted); font-size: .8em; padding: 0 16px 24px; }
+
+  /* ================= Vegas theme: red velvet, green felt, gold trim ================= */
+  :root {
+    --bg: #2a0509; --panel: #0b4d2c; --panel2: #062e19; --text: #fff8e7; --muted: #e0cf9f;
+    --gold: #f5c542; --green: #5cff9d; --red: #ff5c6c; --blue: #2b5fbf;
+    --goldGrad: linear-gradient(#fff3b0, #f5c542 45%, #b8860b 55%, #ffe680);
+    --serif: Georgia, 'Times New Roman', serif;
+  }
+  body {
+    background:
+      repeating-linear-gradient(45deg, rgba(0,0,0,.14) 0 2px, transparent 2px 16px),
+      repeating-linear-gradient(-45deg, rgba(0,0,0,.14) 0 2px, transparent 2px 16px),
+      radial-gradient(circle at 50% 0, #7a1220 0, #2a0509 65%, #140204 100%);
+    background-attachment: fixed;
+  }
+  h1 { font-family: var(--serif); font-size: clamp(1.25em, 6.4vw, 2.1em); letter-spacing: 2px; text-transform: uppercase;
+    white-space: nowrap; }
+  .goldText { background: var(--goldGrad); -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 2px 0 #5a1a00); }
+  .disclaimer { font-style: italic; }
+  .bulbs { height: 14px; margin: 6px 0;
+    background: radial-gradient(circle, #fffbe0 0 3px, #f5c542 4px, transparent 6px) 0 0 / 24px 14px repeat-x;
+    filter: drop-shadow(0 0 4px #f5c542); animation: chase .5s steps(1) infinite; }
+  @keyframes chase { 50% { background-position: 12px 0; } }
+
+  /* Balance boxes become poker chips */
+  .bank { gap: 16px; }
+  .chip { width: 112px; height: 112px; min-width: 0; padding: 0; border-radius: 50%; display: flex;
+    flex-direction: column; justify-content: center; align-items: center;
+    background: radial-gradient(circle, #1a1a1a 0 58%, var(--gold) 59% 62%, transparent 63%),
+      repeating-conic-gradient(#c41e3a 0 22.5deg, #fff 22.5deg 45deg);
+    box-shadow: 0 6px 14px #000b, inset 0 0 0 4px #0003; }
+  .chip:nth-child(2) { background: radial-gradient(circle, #1a1a1a 0 58%, var(--gold) 59% 62%, transparent 63%),
+      repeating-conic-gradient(#0b6b3a 0 22.5deg, #fff 22.5deg 45deg); }
+  .chip:nth-child(3) { background: radial-gradient(circle, #1a1a1a 0 58%, var(--gold) 59% 62%, transparent 63%),
+      repeating-conic-gradient(#1d3f8f 0 22.5deg, #fff 22.5deg 45deg); }
+  .chip b { font-size: 1.1em; }
+  .chip small { font-size: .62em; text-transform: uppercase; letter-spacing: 1px; }
+
+  /* Buttons */
+  button { background: linear-gradient(#3d72d6, #1d4592); box-shadow: 0 3px 0 #0f2654; text-shadow: 0 1px 0 #0006; }
+  button:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 #0f2654; }
+  button.go { background: var(--goldGrad); color: #3a1d00; text-shadow: none; box-shadow: 0 3px 0 #7a5a10; }
+  button.stop { background: linear-gradient(#ff5c6c, #b0102a); color: #fff; box-shadow: 0 3px 0 #5e0614; }
+  nav button, .modes button, .mute { background: linear-gradient(#4a250d, #1f0d03); color: var(--gold);
+    border: 2px solid #8b6914; box-shadow: 0 3px 0 #0008; font-family: var(--serif); }
+  nav button.active { background: var(--goldGrad); color: #3a1d00; border-color: #fff3b0; text-shadow: none; }
+  .modes button { color: var(--muted); }
+  .modes button.on { color: #fff; border-color: var(--red); box-shadow: 0 0 10px var(--red); }
+  input[type=number], select { background: var(--panel2); border: 1px solid #8b6914; color: var(--text); }
+
+  /* Tables are green felt with gold rails */
+  section { border-radius: 22px; border: 3px solid #b8860b;
+    background: radial-gradient(ellipse at center, #13804a 0%, #0b4d2c 65%, #073a20 100%);
+    box-shadow: inset 0 0 0 2px #f5c54240, inset 0 0 50px #000a, 0 10px 28px #000c; }
+  section h2 { font-family: var(--serif); color: var(--gold); text-transform: uppercase; letter-spacing: 2px;
+    text-align: center; text-shadow: 0 2px 0 #0008; }
+  .paytable { text-align: center; }
+  .msg { text-align: center; text-shadow: 0 1px 2px #000; }
+  .history { justify-content: center; }
+  .history span { background: #0008; border: 1px solid #8b691466; }
+
+  /* Slot machine: chrome cabinet, white reels */
+  .reels { background: linear-gradient(#e8e8e8, #8a8a8a 50%, #d0d0d0); padding: 12px; border-radius: 16px;
+    box-shadow: 0 6px 14px #000a, inset 0 2px 0 #fff; max-width: 310px; margin: 14px auto; }
+  .reel { background: linear-gradient(#bbb, #fff 25%, #fff 75%, #bbb); box-shadow: inset 0 0 10px #0006; }
+
+  /* Crash: starry night */
+  .sky { border: 2px solid #8b6914;
+    background: radial-gradient(1px 1px at 20% 30%, #fff, transparent), radial-gradient(1px 1px at 70% 20%, #fff, transparent),
+      radial-gradient(1.5px 1.5px at 45% 60%, #fff, transparent), radial-gradient(1px 1px at 85% 75%, #fff, transparent),
+      radial-gradient(1px 1px at 10% 80%, #fff, transparent), linear-gradient(#02010a, #1a1040); }
+  .mult { font-family: var(--serif); color: var(--gold); text-shadow: 0 0 12px #f5c54299; }
+
+  /* Gold coin and casino cards */
+  .coin { background: radial-gradient(circle at 35% 30%, #fff3b0, #f5c542 40%, #b8860b 90%);
+    border: 6px double #8b6914; box-shadow: 0 6px 14px #000a; font-family: var(--serif); }
+  .card { font-family: var(--serif); border: 1px solid #ccc; }
+  .card.back { border: 3px solid #fff;
+    background: repeating-linear-gradient(45deg, #b0102a 0 5px, #7a0a1d 5px 10px); }
+  .handLabel { color: var(--gold); font-family: var(--serif); text-transform: uppercase; letter-spacing: 1px; }
+  .wheelWrap svg { filter: drop-shadow(0 8px 14px #000c); }
+  #brokeBox { border-color: var(--red); }
 </style>
 </head>
 <body>
 <header>
-  <h1>🎰 Fake Casino 🎰</h1>
-  <button id="muteBtn" class="mute" aria-label="Toggle sound">🔊</button>
+  <div class="bulbs"></div>
+  <h1>🎰 <span class="goldText">Fake Casino</span> 🎰</h1>
   <div class="disclaimer">100% fake money. 0% real consequences. The house still wins, though.</div>
+  <div class="bulbs"></div>
 </header>
 
 <div class="modes">
   <button id="trollBtn">🤡 Troll Mode</button>
   <button id="dramaBtn">🎻 Drama Mode</button>
+  <button id="muteBtn" class="mute" aria-label="Toggle sound">🔊</button>
 </div>
 
 <div class="bank">
   <div class="chip"><b id="balance">1000</b><small>fake coins</small></div>
   <div class="chip"><b id="profit">0</b><small>net profit</small></div>
-  <div class="chip"><b id="bailouts">0</b><small>bailouts taken</small></div>
+  <div class="chip"><b id="bailouts">0</b><small>bailouts</small></div>
 </div>
 
 <nav>
