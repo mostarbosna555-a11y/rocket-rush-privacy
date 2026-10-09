@@ -61,6 +61,20 @@
   .coin.flip { animation: flip .6s ease-in-out; }
   @keyframes flip { 50% { transform: rotateY(900deg) scale(1.2); } }
 
+  /* Blackjack */
+  .hand { display: flex; gap: 6px; flex-wrap: wrap; min-height: 86px; margin: 6px 0 2px; }
+  .card { width: 56px; height: 80px; background: #fff; color: #111; border-radius: 8px; display: grid;
+    place-items: center; font-size: 1.25em; font-weight: 800; box-shadow: 0 2px 6px #0006; }
+  .card.red { color: #d0103a; }
+  .card.back { background: repeating-linear-gradient(45deg, var(--blue), var(--blue) 6px, #2a4fc0 6px, #2a4fc0 12px); }
+  .handLabel { color: var(--muted); font-size: .9em; }
+
+  /* Roulette */
+  .wheelWrap { position: relative; width: 260px; height: 260px; margin: 10px auto; }
+  .wheelWrap svg { width: 100%; height: 100%; transition: transform 4s cubic-bezier(.15,.8,.2,1); }
+  .pointer { position: absolute; top: -6px; left: 50%; transform: translateX(-50%); font-size: 26px; z-index: 1; }
+  select { font: inherit; padding: 9px; border-radius: 10px; border: 0; background: var(--panel2); color: var(--text); }
+
   .broke { text-align: center; }
   footer { text-align: center; color: var(--muted); font-size: .8em; padding: 0 16px 24px; }
 </style>
@@ -81,6 +95,8 @@
   <button data-tab="crash" class="active">🚀 Rocket Crash</button>
   <button data-tab="slots">🎰 Slots</button>
   <button data-tab="coin">🪙 Coin Flip</button>
+  <button data-tab="blackjack">🃏 Blackjack</button>
+  <button data-tab="roulette">🎡 Roulette</button>
 </nav>
 
 <main>
@@ -118,6 +134,48 @@
       <button class="go" data-side="T">Tails</button>
     </div>
     <div class="msg" id="coinMsg"></div>
+  </section>
+
+  <section id="blackjack">
+    <h2>🃏 Blackjack</h2>
+    <p class="paytable">Get closer to 21 than the dealer without busting. Blackjack pays 3:2, dealer stands on 17.</p>
+    <div class="handLabel">Dealer <span id="dealerTotal"></span></div>
+    <div class="hand" id="dealerHand"></div>
+    <div class="handLabel">You <span id="playerTotal"></span></div>
+    <div class="hand" id="playerHand"></div>
+    <div class="row">
+      <label>Bet <input type="number" id="bjBet" value="50" min="1"></label>
+      <button class="go" id="bjDeal">Deal</button>
+      <button id="bjHit" disabled>Hit</button>
+      <button class="stop" id="bjStand" disabled>Stand</button>
+      <button id="bjDouble" disabled>Double</button>
+    </div>
+    <div class="msg" id="bjMsg"></div>
+  </section>
+
+  <section id="roulette">
+    <h2>🎡 Roulette</h2>
+    <p class="paytable">European wheel, one zero. Colours / odd-even / halves pay 1:1, dozens 2:1, a single number 35:1. Zero eats everything.</p>
+    <div class="wheelWrap"><div class="pointer">🔻</div><svg id="wheel" viewBox="0 0 200 200"></svg></div>
+    <div class="row">
+      <label>Bet <input type="number" id="rouBet" value="50" min="1"></label>
+      <select id="rouType">
+        <option value="red">🔴 Red</option>
+        <option value="black">⚫ Black</option>
+        <option value="odd">Odd</option>
+        <option value="even">Even</option>
+        <option value="low">1–18</option>
+        <option value="high">19–36</option>
+        <option value="d1">1st 12</option>
+        <option value="d2">2nd 12</option>
+        <option value="d3">3rd 12</option>
+        <option value="num">Single number</option>
+      </select>
+      <input type="number" id="rouNum" value="17" min="0" max="36" hidden>
+      <button class="go" id="rouSpin">Spin</button>
+    </div>
+    <div class="msg" id="rouMsg"></div>
+    <div class="history" id="rouHistory"></div>
   </section>
 
   <section id="brokeBox" class="broke">
@@ -306,6 +364,156 @@ document.querySelectorAll('#coin button[data-side]').forEach(btn => btn.onclick 
     }
   }, 600);
 });
+
+// ---------- Blackjack ----------
+const SUITS = ['♠', '♥', '♦', '♣'], RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+const bj = { shoe: [], player: [], dealer: [], bet: 0, active: false };
+
+function newShoe() { // 6 decks, Fisher-Yates
+  bj.shoe = [];
+  for (let d = 0; d < 6; d++) for (const s of SUITS) for (const r of RANKS) bj.shoe.push({ r, s });
+  for (let i = bj.shoe.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [bj.shoe[i], bj.shoe[j]] = [bj.shoe[j], bj.shoe[i]];
+  }
+}
+function draw() { if (bj.shoe.length < 52) newShoe(); return bj.shoe.pop(); }
+
+function handValue(hand) {
+  let total = 0, aces = 0;
+  for (const c of hand) {
+    if (c.r === 'A') { total += 11; aces++; }
+    else total += ['J', 'Q', 'K'].includes(c.r) ? 10 : Number(c.r);
+  }
+  while (total > 21 && aces) { total -= 10; aces--; }
+  return total;
+}
+const isBlackjack = hand => hand.length === 2 && handValue(hand) === 21;
+
+function renderHand(el, hand, hideHole) {
+  el.innerHTML = '';
+  hand.forEach((c, i) => {
+    const d = document.createElement('div');
+    if (hideHole && i === 1) d.className = 'card back';
+    else { d.className = 'card' + (c.s === '♥' || c.s === '♦' ? ' red' : ''); d.textContent = c.r + c.s; }
+    el.appendChild(d);
+  });
+}
+function renderTable(hideHole) {
+  renderHand($('dealerHand'), bj.dealer, hideHole);
+  renderHand($('playerHand'), bj.player, false);
+  $('dealerTotal').textContent = hideHole ? '' : `(${handValue(bj.dealer)})`;
+  $('playerTotal').textContent = `(${handValue(bj.player)})`;
+}
+function setBjButtons() {
+  $('bjDeal').disabled = bj.active;
+  $('bjHit').disabled = $('bjStand').disabled = !bj.active;
+  $('bjDouble').disabled = !bj.active || bj.player.length !== 2 || state.balance < bj.bet;
+}
+
+$('bjDeal').onclick = () => {
+  const bet = takeBet('bjBet', $('bjMsg'));
+  if (!bet) return;
+  Object.assign(bj, { bet, active: true, player: [draw(), draw()], dealer: [draw(), draw()] });
+  say($('bjMsg'), 'Your move.');
+  if (isBlackjack(bj.player) || isBlackjack(bj.dealer)) return finishBj();
+  renderTable(true); setBjButtons();
+};
+$('bjHit').onclick = () => {
+  bj.player.push(draw());
+  if (handValue(bj.player) >= 21) return finishBj();
+  renderTable(true); setBjButtons();
+};
+$('bjStand').onclick = () => finishBj();
+$('bjDouble').onclick = () => {
+  state.balance -= bj.bet; state.profit -= bj.bet; bj.bet *= 2; render();
+  bj.player.push(draw());
+  finishBj();
+};
+
+function finishBj() {
+  bj.active = false;
+  const p = handValue(bj.player);
+  if (p <= 21 && !isBlackjack(bj.player)) while (handValue(bj.dealer) < 17) bj.dealer.push(draw());
+  const d = handValue(bj.dealer);
+  renderTable(false); setBjButtons();
+
+  let win = 0, text, cls = 'lose';
+  if (isBlackjack(bj.player) && isBlackjack(bj.dealer)) { win = bj.bet; text = 'Both blackjack. Push, nobody wins, everybody sad.'; cls = ''; }
+  else if (isBlackjack(bj.player)) { win = Math.floor(bj.bet * 2.5); text = `BLACKJACK! +${win} 😎`; cls = 'win'; }
+  else if (isBlackjack(bj.dealer)) text = 'Dealer has blackjack. Brutal.';
+  else if (p > 21) text = `Bust with ${p}. Who hits on that, bro?`;
+  else if (d > 21) { win = bj.bet * 2; text = `Dealer busts with ${d}! +${win}`; cls = 'win'; }
+  else if (p > d) { win = bj.bet * 2; text = `${p} beats ${d}. +${win}`; cls = 'win'; }
+  else if (p === d) { win = bj.bet; text = `Push at ${p}. Bet returned.`; cls = ''; }
+  else text = `Dealer ${d} beats your ${p}. The house says thanks.`;
+
+  if (win) pay(win);
+  say($('bjMsg'), text, cls);
+  if (!win) checkBroke();
+}
+
+// ---------- Roulette ----------
+const WHEEL = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20,
+  14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26];
+const REDS = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
+const SEG = 360 / WHEEL.length;
+const colorOf = n => n === 0 ? 'green' : REDS.has(n) ? 'red' : 'black';
+let wheelAngle = 0, wheelBusy = false;
+
+(function buildWheel() {
+  const pt = (deg, r) => { const a = deg * Math.PI / 180; return `${100 + r * Math.sin(a)} ${100 - r * Math.cos(a)}`; };
+  const fill = { green: '#1f9d55', red: '#d0103a', black: '#16131f' };
+  let svg = '<circle cx="100" cy="100" r="99" fill="#5b3b1a"/>';
+  WHEEL.forEach((n, i) => {
+    const a0 = (i - .5) * SEG, a1 = (i + .5) * SEG;
+    svg += `<path d="M100 100 L${pt(a0, 94)} A94 94 0 0 1 ${pt(a1, 94)} Z" fill="${fill[colorOf(n)]}" stroke="#c9a24a" stroke-width=".4"/>`;
+    const [x, y] = pt(i * SEG, 84).split(' ');
+    svg += `<text x="${x}" y="${y}" fill="#fff" font-size="7" font-weight="700" text-anchor="middle" dominant-baseline="middle" transform="rotate(${i * SEG} ${x} ${y})">${n}</text>`;
+  });
+  svg += '<circle cx="100" cy="100" r="58" fill="#3a2612"/><circle cx="100" cy="100" r="12" fill="#c9a24a"/>';
+  $('wheel').innerHTML = svg;
+})();
+
+$('rouType').onchange = () => { $('rouNum').hidden = $('rouType').value !== 'num'; };
+
+function rouMultiplier(type, n, pick) { // total returned per coin bet, 0 = lost
+  if (type === 'num') return n === pick ? 36 : 0;
+  if (n === 0) return 0;
+  const hit = {
+    red: REDS.has(n), black: !REDS.has(n), odd: n % 2 === 1, even: n % 2 === 0,
+    low: n <= 18, high: n >= 19, d1: n <= 12, d2: n > 12 && n <= 24, d3: n > 24,
+  }[type];
+  if (!hit) return 0;
+  return type[0] === 'd' ? 3 : 2;
+}
+
+$('rouSpin').onclick = () => {
+  if (wheelBusy) return;
+  const type = $('rouType').value, pick = Math.floor(Number($('rouNum').value));
+  if (type === 'num' && !(pick >= 0 && pick <= 36)) return say($('rouMsg'), 'Pick a number from 0 to 36, genius.', 'lose');
+  const bet = takeBet('rouBet', $('rouMsg'));
+  if (!bet) return;
+  wheelBusy = true; $('rouSpin').disabled = true;
+  say($('rouMsg'), 'Round and round she goes... 🌀');
+
+  const idx = Math.floor(Math.random() * WHEEL.length), n = WHEEL[idx];
+  const target = ((-idx * SEG) % 360 + 360) % 360;
+  wheelAngle += 360 * 5 + ((target - wheelAngle % 360) + 360) % 360;
+  $('wheel').style.transform = `rotate(${wheelAngle}deg)`;
+
+  setTimeout(() => {
+    wheelBusy = false; $('rouSpin').disabled = false;
+    const mult = rouMultiplier(type, n, pick);
+    const label = `${n} ${colorOf(n) === 'red' ? '🔴' : colorOf(n) === 'black' ? '⚫' : '🟢'}`;
+    if (mult) { pay(bet * mult); say($('rouMsg'), `${label}! +${bet * mult} ${mult === 36 ? '🤯 STRAIGHT UP!' : ''}`, 'win'); }
+    else { say($('rouMsg'), n === 0 ? `${label}. Zero. The house's favourite number.` : `${label}. Not your colour today.`, 'lose'); checkBroke(); }
+    const h = document.createElement('span');
+    h.textContent = n; h.style.color = { red: 'var(--red)', black: 'var(--text)', green: 'var(--green)' }[colorOf(n)];
+    $('rouHistory').prepend(h);
+    while ($('rouHistory').children.length > 12) $('rouHistory').lastChild.remove();
+  }, 4100);
+};
 
 render();
 checkBroke();
