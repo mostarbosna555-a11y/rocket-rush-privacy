@@ -1,0 +1,9 @@
+{
+  "name": "fake-casino-leaderboard",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Leaderboard for the Fake Casino app (play money only)",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=18" }
+}
