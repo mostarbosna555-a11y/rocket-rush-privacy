@@ -77,6 +77,29 @@
   .pointer { position: absolute; top: -6px; left: 50%; transform: translateX(-50%); font-size: 26px; z-index: 1; }
   select { font: inherit; padding: 9px; border-radius: 10px; border: 0; background: var(--panel2); color: var(--text); }
 
+  /* Troll & Drama modes */
+  .modes { display: flex; justify-content: center; gap: 8px; margin: 0 16px 6px; flex-wrap: wrap; }
+  .modes button { background: var(--panel); color: var(--muted); border: 2px solid transparent; font-size: .9em; }
+  .modes button.on { color: var(--text); border-color: var(--red); }
+  body.drama header, body.drama .bank, body.drama .modes, body.drama nav, body.drama main {
+    filter: grayscale(1) brightness(.7); transition: filter .6s; }
+  #rain { position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: opacity .6s; z-index: 5;
+    background: repeating-linear-gradient(105deg, transparent 0 18px, rgba(200,210,255,.18) 18px 19px);
+    background-size: 200px 200px; animation: rain .35s linear infinite; }
+  body.drama #rain { opacity: 1; }
+  @keyframes rain { to { background-position: -40px 200px; } }
+  #dramaText { position: fixed; left: 16px; right: 16px; top: 40%; text-align: center; font-family: Georgia, serif;
+    font-style: italic; font-size: 1.5em; color: #eee; text-shadow: 0 2px 8px #000; opacity: 0;
+    background: rgba(0,0,0,.6); padding: 16px; border-radius: 12px;
+    transition: opacity 1s; pointer-events: none; z-index: 6; }
+  body.drama #dramaText { opacity: 1; }
+  #fbi { position: fixed; inset: 0; background: #000d; display: none; place-items: center; z-index: 10;
+    text-align: center; padding: 16px; }
+  #fbi.show { display: grid; }
+  #fbi div { background: #1a0008; border: 3px solid var(--red); border-radius: 14px; padding: 22px; max-width: 380px;
+    animation: blink .5s step-end infinite alternate; }
+  @keyframes blink { 50% { border-color: var(--blue); } }
+
   .broke { text-align: center; }
   footer { text-align: center; color: var(--muted); font-size: .8em; padding: 0 16px 24px; }
 </style>
@@ -87,6 +110,11 @@
   <button id="muteBtn" class="mute" aria-label="Toggle sound">🔊</button>
   <div class="disclaimer">100% fake money. 0% real consequences. The house still wins, though.</div>
 </header>
+
+<div class="modes">
+  <button id="trollBtn">🤡 Troll Mode</button>
+  <button id="dramaBtn">🎻 Drama Mode</button>
+</div>
 
 <div class="bank">
   <div class="chip"><b id="balance">1000</b><small>fake coins</small></div>
@@ -188,6 +216,10 @@
   </section>
 </main>
 
+<div id="rain"></div>
+<div id="dramaText"></div>
+<div id="fbi"><div id="fbiBox"></div></div>
+
 <footer>Fun fact: in real casinos the math is the same, except the money is real and nobody hands you a bailout button.</footer>
 
 <script>
@@ -242,6 +274,25 @@ const sfx = {
   },
   push() { this.tone(440, .15, { vol: .12 }); this.tone(440, .15, { vol: .12, at: .18 }); },
   explode() { this.noise(1.2, { vol: .6, freq: 600 }); this.tone(120, .8, { type: 'sawtooth', vol: .25, slideTo: 30 }); },
+  violin() { // sad minor descent, with vibrato and a bit of thunder
+    const c = this.ac(); if (!c) return;
+    this.noise(1.6, { vol: .35, freq: 180 });
+    let at = .2;
+    for (const [f, d] of [[659, .5], [587, .5], [523, .5], [494, 1.6]]) {
+      const t = c.currentTime + at, o = c.createOscillator(), lfo = c.createOscillator(), depth = c.createGain(),
+        fl = c.createBiquadFilter(), g = c.createGain();
+      o.type = 'sawtooth'; o.frequency.value = f;
+      lfo.frequency.value = 5.5; depth.gain.value = f * .012; lfo.connect(depth).connect(o.frequency);
+      fl.type = 'lowpass'; fl.frequency.value = 2200;
+      g.gain.setValueAtTime(.0001, t); g.gain.linearRampToValueAtTime(.12, t + .15);
+      g.gain.setValueAtTime(.12, t + d - .1); g.gain.exponentialRampToValueAtTime(.001, t + d + .3);
+      o.connect(fl).connect(g).connect(c.destination);
+      o.start(t); lfo.start(t); o.stop(t + d + .35); lfo.stop(t + d + .35);
+      at += d;
+    }
+  },
+  siren() { for (let i = 0; i < 6; i++) this.tone(i % 2 ? 950 : 700, .4, { type: 'square', vol: .06, at: i * .4 }); },
+  cluck() { [0, .12, .24].forEach(at => this.tone(900, .08, { type: 'square', vol: .08, at, slideTo: 500 })); },
   engineStart() {
     const c = this.ac(); if (!c) return;
     this.engineOsc = c.createOscillator(); this.engineGain = c.createGain();
@@ -259,6 +310,45 @@ $('muteBtn').onclick = () => {
   renderMute(); sfx.bet();
 };
 renderMute();
+
+// ---------- Troll & Drama modes (pure jokes: they never change the odds) ----------
+const modes = { troll: false, drama: false };
+try { Object.assign(modes, JSON.parse(localStorage.getItem('fakeCasinoModes') || '{}')); } catch (e) {}
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+function renderModes() {
+  $('trollBtn').classList.toggle('on', modes.troll);
+  $('dramaBtn').classList.toggle('on', modes.drama);
+  try { localStorage.setItem('fakeCasinoModes', JSON.stringify(modes)); } catch (e) {}
+}
+$('trollBtn').onclick = () => { modes.troll = !modes.troll; renderModes(); if (modes.troll) sfx.cluck(); };
+$('dramaBtn').onclick = () => { modes.drama = !modes.drama; renderModes(); if (modes.drama) drama(); };
+renderModes();
+
+const DRAMA_LINES = [
+  '...ve o gün her şeyini kaybetti.',
+  '...annesine "kütüphanedeyim" demişti.',
+  '...oysa sadece bir el daha diyecekti.',
+  '...cüzdanı bir daha asla gülmedi.',
+  '...roketle birlikte hayalleri de patladı.',
+  '...ve kasa, her zamanki gibi, kazandı.',
+];
+function drama() {
+  sfx.violin();
+  $('dramaText').textContent = pick(DRAMA_LINES);
+  document.body.classList.add('drama');
+  clearTimeout(drama.timer);
+  drama.timer = setTimeout(() => document.body.classList.remove('drama'), 4000);
+}
+// Every loss goes through here so Drama Mode can take over the sad trombone.
+function lost() { if (modes.drama) drama(); else sfx.lose(); }
+
+function fbiPrank() {
+  $('fbiBox').innerHTML = '<h2>⚠️ ŞÜPHELİ ŞANS TESPİT EDİLDİ</h2><p>Hesabın FBI tarafından inceleniyor...</p><p>Lütfen telefonu yere bırak. 🚔</p>';
+  $('fbi').classList.add('show');
+  sfx.siren();
+  setTimeout(() => { $('fbiBox').innerHTML = '<h2>Şaka şaka 😂</h2><p>Paran hesabında, rahat ol.</p>'; sfx.win(); }, 3000);
+  setTimeout(() => $('fbi').classList.remove('show'), 4800);
+}
 
 const brokeLines = [
   "Your fake wallet called. It wants a divorce.",
@@ -319,9 +409,10 @@ $('crashGo').onclick = () => {
   if (!bet) return;
   Object.assign(crash, { running: true, bet, point: rollCrashPoint(), start: performance.now(), mult: 1 });
   $('sky').classList.remove('crashed');
-  $('rocket').textContent = '🚀';
+  crash.chicken = modes.troll && Math.random() < .3;
+  $('rocket').textContent = crash.chicken ? '🐔' : '🚀';
   $('crashGo').disabled = true; $('crashOut').disabled = false;
-  say($('crashMsg'), 'Liftoff! 🔥');
+  say($('crashMsg'), crash.chicken ? 'Bu roket değil... bu bir TAVUK 🐔' : 'Liftoff! 🔥');
   sfx.engineStart();
   crash.raf = requestAnimationFrame(tick);
 };
@@ -354,10 +445,13 @@ function explode() {
   endFlight();
   $('sky').classList.add('crashed');
   $('mult').textContent = crash.point.toFixed(2) + 'x';
-  $('rocket').textContent = '💥';
+  $('rocket').textContent = crash.chicken ? '🍗' : '💥';
   sfx.explode();
+  if (crash.chicken) sfx.cluck();
+  if (modes.drama) drama();
   const roasts = ['Should have cashed out, champ.', 'Houston, we have a problem.', 'Greed: 1, You: 0.', 'RIP rocket. RIP coins.'];
-  say($('crashMsg'), `Boom at ${crash.point.toFixed(2)}x. ${roasts[Math.floor(Math.random() * roasts.length)]}`, 'lose');
+  say($('crashMsg'), crash.chicken ? `Bok bok BOOM 🐔💥 Tavuk ${crash.point.toFixed(2)}x'te kızardı.`
+    : `Boom at ${crash.point.toFixed(2)}x. ${pick(roasts)}`, 'lose');
   checkBroke();
 }
 
@@ -406,11 +500,12 @@ function settleSlots([a, b, c], bet) {
   if (mult) {
     pay(bet * mult);
     mult >= 40 ? sfx.jackpot() : sfx.win();
+    if (modes.troll && (mult >= 40 || Math.random() < .25)) fbiPrank();
     say($('slotMsg'), mult >= 40 ? `JACKPOT ×${mult}!!! +${bet * mult} 🤑🤑🤑` : `Winner ×${mult}! +${bet * mult}`, 'win');
   } else {
     const lines = ['Nothing. The machine is laughing at you.', 'So close! (It wasn\'t close.)', 'The slot machine thanks you for your donation.'];
     say($('slotMsg'), lines[Math.floor(Math.random() * lines.length)], 'lose');
-    sfx.lose();
+    lost();
     checkBroke();
   }
 }
@@ -434,7 +529,7 @@ document.querySelectorAll('#coin button[data-side]').forEach(btn => btn.onclick 
       sfx.win();
     } else {
       say($('coinMsg'), `${side === 'H' ? 'Heads' : 'Tails'}. The coin chose violence.`, 'lose');
-      sfx.lose();
+      lost();
       checkBroke();
     }
   }, 600);
@@ -526,8 +621,11 @@ function finishBj() {
 
   if (win) pay(win);
   say($('bjMsg'), text, cls);
+  if (modes.troll) $('bjMsg').textContent += ' ' + pick(cls === 'win'
+    ? ["Krupiye: 'Bir dahakine bakarız seninle...' 😤", 'Krupiye kartları kokluyor, hile arıyor 👃', "Krupiye: 'Şansa bak ya, haksızlık bu.' 😒"]
+    : ["Krupiye: 'Bu elle mi oynadın gerçekten? 🤨'", 'Krupiye gülmekten masanın altına düştü 😂', "Krupiye: 'Annen biliyor mu bu yaptığını?'"]);
   if (isBlackjack(bj.player) && cls === 'win') sfx.jackpot();
-  else ({ win: () => sfx.win(), lose: () => sfx.lose() }[cls] || (() => sfx.push()))();
+  else ({ win: () => sfx.win(), lose: () => lost() }[cls] || (() => sfx.push()))();
   if (!win) checkBroke();
 }
 
@@ -573,11 +671,12 @@ $('rouSpin').onclick = () => {
   const bet = takeBet('rouBet', $('rouMsg'));
   if (!bet) return;
   wheelBusy = true; $('rouSpin').disabled = true;
-  say($('rouMsg'), 'Round and round she goes... 🌀');
+  const dizzy = modes.troll && Math.random() < .3;
+  say($('rouMsg'), dizzy ? 'Çark kafayı yedi, durmuyor 🌀🤢' : 'Round and round she goes... 🌀');
 
   const idx = Math.floor(Math.random() * WHEEL.length), n = WHEEL[idx];
   const target = ((-idx * SEG) % 360 + 360) % 360;
-  wheelAngle += 360 * 5 + ((target - wheelAngle % 360) + 360) % 360;
+  wheelAngle += 360 * (dizzy ? 12 : 5) + ((target - wheelAngle % 360) + 360) % 360;
   $('wheel').style.transform = `rotate(${wheelAngle}deg)`;
   for (let t = 0, gap = .04; t < 3.9; t += gap, gap *= 1.07) sfx.tone(1800, .02, { type: 'square', vol: .04, at: t });
 
@@ -586,7 +685,7 @@ $('rouSpin').onclick = () => {
     const mult = rouMultiplier(type, n, pick);
     const label = `${n} ${colorOf(n) === 'red' ? '🔴' : colorOf(n) === 'black' ? '⚫' : '🟢'}`;
     if (mult) { pay(bet * mult); mult === 36 ? sfx.jackpot() : sfx.win(); say($('rouMsg'), `${label}! +${bet * mult} ${mult === 36 ? '🤯 STRAIGHT UP!' : ''}`, 'win'); }
-    else { say($('rouMsg'), n === 0 ? `${label}. Zero. The house's favourite number.` : `${label}. Not your colour today.`, 'lose'); sfx.lose(); checkBroke(); }
+    else { say($('rouMsg'), n === 0 ? `${label}. Zero. The house's favourite number.` : `${label}. Not your colour today.`, 'lose'); lost(); checkBroke(); }
     const h = document.createElement('span');
     h.textContent = n; h.style.color = { red: 'var(--red)', black: 'var(--text)', green: 'var(--green)' }[colorOf(n)];
     $('rouHistory').prepend(h);

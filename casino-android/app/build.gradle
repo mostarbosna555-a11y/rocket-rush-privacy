@@ -10,8 +10,8 @@ android {
         applicationId 'com.rocketrush.fakecasino'
         minSdk 24
         targetSdk 34
-        versionCode 2
-        versionName '1.1'
+        versionCode 3
+        versionName '1.2'
     }
 
     // Ship the web casino as-is, so the site and the app never drift apart.
