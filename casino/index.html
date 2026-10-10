@@ -186,6 +186,14 @@
   .handLabel { color: var(--gold); font-family: var(--serif); text-transform: uppercase; letter-spacing: 1px; }
   .wheelWrap svg { filter: drop-shadow(0 8px 14px #000c); }
   #brokeBox { border-color: var(--red); }
+  .mineGrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 7px; max-width: 320px; margin: 12px auto; }
+  .tile { aspect-ratio: 1; padding: 0; border-radius: 10px; font-size: 1.7em; display: grid; place-items: center;
+    background: linear-gradient(#1b6b43, #0a3d23); border: 2px solid #8b6914; box-shadow: 0 3px 0 #0008; }
+  .tile:disabled { opacity: 1; }
+  .tile.gem { background: radial-gradient(circle, #2a8f5c, #0d4a2b); animation: pop .25s; }
+  .tile.mine { background: radial-gradient(circle, #ff5c6c, #6b0010); animation: pop .25s; }
+  .tile.ghost { opacity: .45; }
+  @keyframes pop { 50% { transform: scale(1.18); } }
   input[type=text], input[type=password] { font: inherit; width: 150px; padding: 9px; border-radius: 10px;
     background: var(--panel2); border: 1px solid #8b6914; color: var(--text); }
   .lb { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: .95em; }
@@ -222,6 +230,7 @@
   <button data-tab="coin">🪙 Coin Flip</button>
   <button data-tab="blackjack">🃏 Blackjack</button>
   <button data-tab="roulette">🎡 Roulette</button>
+  <button data-tab="mines">💣 Mines</button>
   <button data-tab="leaderboard">🏆 Leaderboard</button>
   <button data-tab="settings">⚙️ Settings</button>
 </nav>
@@ -303,6 +312,22 @@
     </div>
     <div class="msg" id="rouMsg"></div>
     <div class="history" id="rouHistory"></div>
+  </section>
+
+  <section id="mines">
+    <h2>💣 Mines</h2>
+    <p class="paytable">Find 💎, dodge 💣. Every gem pumps the multiplier. Cash out whenever you get scared.</p>
+    <div class="mineGrid" id="mineGrid"></div>
+    <div class="row" style="justify-content:center">
+      <label>Bet <input type="number" id="minesBet" value="50" min="1"></label>
+      <select id="minesCount">
+        <option value="1">1 💣</option><option value="3" selected>3 💣</option><option value="5">5 💣</option>
+        <option value="10">10 💣</option><option value="24">24 💣 (suicide)</option>
+      </select>
+      <button class="go" id="minesGo">Start</button>
+      <button class="stop" id="minesOut" disabled>Cash out</button>
+    </div>
+    <div class="msg" id="minesMsg"></div>
   </section>
 
   <section id="leaderboard">
@@ -819,6 +844,81 @@ $('rouSpin').onclick = () => {
     while ($('rouHistory').children.length > 12) $('rouHistory').lastChild.remove();
   }, 4100);
 };
+
+// ---------- Mines ----------
+// Fair multiplier with the usual ~3% house edge: 0.97 / P(surviving k picks).
+const mines = { active: false, bet: 0, count: 3, bombs: new Set(), found: 0 };
+function minesMult(found, count) {
+  let m = .97;
+  for (let i = 0; i < found; i++) m *= (25 - i) / (25 - count - i);
+  return Math.floor(m * 100) / 100;
+}
+function buildMineGrid() {
+  $('mineGrid').innerHTML = '';
+  for (let i = 0; i < 25; i++) {
+    const t = document.createElement('button');
+    t.className = 'tile'; t.disabled = !mines.active; t.onclick = () => pickTile(i, t);
+    $('mineGrid').appendChild(t);
+  }
+}
+function revealMines(hitIdx) {
+  [...$('mineGrid').children].forEach((t, i) => {
+    t.disabled = true;
+    if (t.textContent) return;
+    t.textContent = mines.bombs.has(i) ? '💣' : '💎';
+    t.classList.add(mines.bombs.has(i) ? 'mine' : 'gem', 'ghost');
+  });
+  if (hitIdx != null) $('mineGrid').children[hitIdx].classList.remove('ghost');
+}
+function minesStatus() {
+  const now = minesMult(mines.found, mines.count), next = minesMult(mines.found + 1, mines.count);
+  say($('minesMsg'), mines.found
+    ? `${now}x → ${Math.floor(mines.bet * now)} coins. Next 💎: ${next}x`
+    : `Pick a tile. First 💎 pays ${next}x.`, mines.found ? 'win' : '');
+}
+$('minesGo').onclick = () => {
+  const bet = takeBet('minesBet', $('minesMsg'));
+  if (!bet) return;
+  const count = Number($('minesCount').value);
+  const bombs = new Set();
+  while (bombs.size < count) bombs.add(Math.floor(Math.random() * 25));
+  Object.assign(mines, { active: true, bet, count, bombs, found: 0 });
+  $('minesGo').disabled = $('minesCount').disabled = true; $('minesOut').disabled = true;
+  buildMineGrid(); minesStatus();
+};
+function pickTile(i, t) {
+  if (!mines.active || t.textContent) return;
+  if (mines.bombs.has(i)) {
+    mines.active = false;
+    t.textContent = '💣'; t.classList.add('mine');
+    revealMines(i);
+    $('minesGo').disabled = $('minesCount').disabled = false; $('minesOut').disabled = true;
+    sfx.explode(); if (modes.drama) drama();
+    say($('minesMsg'), modes.troll
+      ? pick(['Mayın değilmiş, annenin terliği çıktı 🩴💥', 'BOOM. Sapper diploman iptal 🪖', 'Mayın sana "merhaba" dedi 👋💣'])
+      : pick(['BOOM. Should have cashed out.', 'Kaboom! Your coins are in orbit now.', 'Stepped right on it, legend.']), 'lose');
+    checkBroke();
+    return;
+  }
+  mines.found++;
+  t.textContent = '💎'; t.classList.add('gem'); t.disabled = true;
+  sfx.tone(600 + mines.found * 60, .15, { type: 'sine', vol: .15 });
+  $('minesOut').disabled = false;
+  if (mines.found === 25 - mines.count) return minesCashOut(); // cleared the board
+  minesStatus();
+}
+function minesCashOut() {
+  if (!mines.active || !mines.found) return;
+  const mult = minesMult(mines.found, mines.count), win = Math.floor(mines.bet * mult);
+  mines.active = false;
+  revealMines();
+  $('minesGo').disabled = $('minesCount').disabled = false; $('minesOut').disabled = true;
+  pay(win);
+  mult >= 10 ? sfx.jackpot() : sfx.win();
+  say($('minesMsg'), `Cashed out at ${mult}x → +${win} 💎 ${mult >= 10 ? 'ABSOLUTE LEGEND 🤑' : ''}`, 'win');
+}
+$('minesOut').onclick = minesCashOut;
+buildMineGrid();
 
 // ---------- Online leaderboard ----------
 const API = 'https://leaderboard-production-6cc7.up.railway.app';
